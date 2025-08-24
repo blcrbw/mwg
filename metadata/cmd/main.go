@@ -4,13 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"log"
+	"mmoviecom/gen"
 	"mmoviecom/metadata/internal/controller/metadata"
-	httphandler "mmoviecom/metadata/internal/handler/http"
+	grpchandler "mmoviecom/metadata/internal/handler/grpc"
 	"mmoviecom/metadata/internal/repository/memory"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
-	"net/http"
+	"net"
 	"time"
 )
 
@@ -43,9 +46,15 @@ func main() {
 
 	repo := memory.New()
 	svc := metadata.New(repo)
-	h := httphandler.New(svc)
-	http.Handle("/metadata", http.HandlerFunc(h.GetMetadata))
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+	h := grpchandler.New(svc)
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	srv := grpc.NewServer()
+	gen.RegisterMetadataServiceServer(srv, h)
+	reflection.Register(srv)
+	if err := srv.Serve(lis); err != nil {
 		panic(err)
 	}
 }
