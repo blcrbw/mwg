@@ -12,6 +12,7 @@ import (
 	"mmoviecom/pkg/discovery/consul"
 	"mmoviecom/rating/internal/controller/rating"
 	grpchandler "mmoviecom/rating/internal/handler/grpc"
+	"mmoviecom/rating/internal/ingester/kafka"
 	"mmoviecom/rating/internal/repository/memory"
 	"net"
 	"time"
@@ -45,7 +46,14 @@ func main() {
 	defer registry.Deregister(ctx, instanceID, serviceName)
 
 	repo := memory.New()
-	svc := rating.New(repo)
+	ingester, err := kafka.NewIngester("localhost", "rating", "ratings")
+	if err != nil {
+		log.Fatalf("Failed to initialize ingester: %v", err)
+	}
+	svc := rating.New(repo, ingester)
+	if err := svc.StartIngestion(ctx); err != nil {
+		log.Fatalf("Failed to start ingestion: %v", err)
+	}
 	h := grpchandler.New(svc)
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {

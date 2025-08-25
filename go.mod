@@ -3,6 +3,7 @@ module mmoviecom
 go 1.24.4
 
 require (
+	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/hashicorp/consul/api v1.32.1
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8

@@ -3,6 +3,7 @@ package rating
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mmoviecom/rating/internal/repository"
 	"mmoviecom/rating/pkg/model"
 )
@@ -15,14 +16,19 @@ type ratingRepository interface {
 	Put(ctx context.Context, recordId model.RecordId, recordType model.RecordType, record *model.Rating) error
 }
 
+type ratingIngester interface {
+	Ingest(ctx context.Context) (chan model.RatingEvent, error)
+}
+
 // Controller defines a rating service controller.
 type Controller struct {
-	repo ratingRepository
+	repo     ratingRepository
+	ingester ratingIngester
 }
 
 // New creates a rating service controller.
-func New(repo ratingRepository) *Controller {
-	return &Controller{repo: repo}
+func New(repo ratingRepository, ingester ratingIngester) *Controller {
+	return &Controller{repo: repo, ingester: ingester}
 }
 
 // GetAggregatedRating returns the aggregated rating for a
@@ -44,4 +50,22 @@ func (c *Controller) GetAggregatedRating(ctx context.Context, recordId model.Rec
 // PutRating writes a rating for a given record.
 func (c *Controller) PutRating(ctx context.Context, recordId model.RecordId, recordType model.RecordType, record *model.Rating) error {
 	return c.repo.Put(ctx, recordId, recordType, record)
+}
+
+// StartIngestion starts the ingestion if rating events.
+func (c *Controller) StartIngestion(ctx context.Context) error {
+	ch, err := c.ingester.Ingest(ctx)
+	if err != nil {
+		return err
+	}
+	for e := range ch {
+		fmt.Printf("Consume a message: %v\n", e)
+		if err := c.PutRating(ctx, model.RecordId(e.RecordId), model.RecordType(e.RecordType), &model.Rating{
+			UserId: e.UserId,
+			Value:  e.Value,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
