@@ -13,7 +13,7 @@ import (
 	"mmoviecom/rating/internal/controller/rating"
 	grpchandler "mmoviecom/rating/internal/handler/grpc"
 	"mmoviecom/rating/internal/ingester/kafka"
-	"mmoviecom/rating/internal/repository/memory"
+	"mmoviecom/rating/internal/repository/mysql"
 	"net"
 	"time"
 )
@@ -45,15 +45,20 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceID, serviceName)
 
-	repo := memory.New()
+	repo, err := mysql.New()
+	if err != nil {
+		panic(err)
+	}
 	ingester, err := kafka.NewIngester("localhost", "rating", "ratings")
 	if err != nil {
 		log.Fatalf("Failed to initialize ingester: %v", err)
 	}
 	svc := rating.New(repo, ingester)
-	if err := svc.StartIngestion(ctx); err != nil {
-		log.Fatalf("Failed to start ingestion: %v", err)
-	}
+	go func() {
+		if err := svc.StartIngestion(ctx); err != nil {
+			log.Fatalf("Failed to start ingestion: %v", err)
+		}
+	}()
 	h := grpchandler.New(svc)
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
@@ -62,6 +67,7 @@ func main() {
 	srv := grpc.NewServer()
 	gen.RegisterRatingServiceServer(srv, h)
 	reflection.Register(srv)
+	log.Printf("Register reflectrion")
 	if err := srv.Serve(lis); err != nil {
 		panic(err)
 	}

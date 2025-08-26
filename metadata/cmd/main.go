@@ -11,6 +11,7 @@ import (
 	"mmoviecom/metadata/internal/controller/metadata"
 	grpchandler "mmoviecom/metadata/internal/handler/grpc"
 	"mmoviecom/metadata/internal/repository/memory"
+	"mmoviecom/metadata/internal/repository/mysql"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
 	"net"
@@ -44,8 +45,12 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceID, serviceName)
 
-	repo := memory.New()
-	svc := metadata.New(repo)
+	repo, err := mysql.New()
+	if err != nil {
+		panic(err)
+	}
+	cache := memory.New()
+	svc := metadata.New(repo, cache)
 	h := grpchandler.New(svc)
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {

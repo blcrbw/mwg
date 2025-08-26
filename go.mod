@@ -4,12 +4,14 @@ go 1.24.4
 
 require (
 	github.com/confluentinc/confluent-kafka-go v1.9.2
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/hashicorp/consul/api v1.32.1
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

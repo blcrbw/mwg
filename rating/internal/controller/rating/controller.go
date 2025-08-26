@@ -39,6 +39,8 @@ func (c *Controller) GetAggregatedRating(ctx context.Context, recordId model.Rec
 		return 0, ErrNotFound
 	} else if err != nil {
 		return 0, err
+	} else if len(ratings) == 0 {
+		return 0, ErrNotFound
 	}
 	sum := float64(0)
 	for _, r := range ratings {
@@ -52,7 +54,7 @@ func (c *Controller) PutRating(ctx context.Context, recordId model.RecordId, rec
 	return c.repo.Put(ctx, recordId, recordType, record)
 }
 
-// StartIngestion starts the ingestion if rating events.
+// StartIngestion starts the ingestion of rating events.
 func (c *Controller) StartIngestion(ctx context.Context) error {
 	ch, err := c.ingester.Ingest(ctx)
 	if err != nil {
