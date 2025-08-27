@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"gopkg.in/yaml.v3"
 	"log"
 	"mmoviecom/gen"
+	"mmoviecom/metadata/configs"
 	"mmoviecom/metadata/internal/controller/metadata"
 	grpchandler "mmoviecom/metadata/internal/handler/grpc"
 	"mmoviecom/metadata/internal/repository/memory"
@@ -15,24 +16,31 @@ import (
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
 	"net"
+	"os"
 	"time"
 )
 
 const serviceName = "metadata"
 
 func main() {
-	var port int
-	flag.IntVar(&port, "port", 8081, "API handler port")
-	flag.Parse()
+	log.Printf("Starting the movie metadata service")
 
-	log.Printf("Starting the movie metadata service on port  %d", port)
-	registry, err := consul.NewRegistry("localhost:8500")
+	f, err := os.Open("defaults.yaml")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	var cfg configs.ServiceConfig
+	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+		panic(err)
+	}
+	registry, err := consul.NewRegistry(cfg.ServiceDiscovery.Consul.Address)
 	if err != nil {
 		panic(err)
 	}
 	ctx := context.Background()
 	instanceID := discovery.GenerateInstanceID(serviceName)
-	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("localhost:%d", port)); err != nil {
+	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("metadata:%d", cfg.API.Port)); err != nil {
 		panic(err)
 	}
 	go func() {
@@ -52,7 +60,7 @@ func main() {
 	cache := memory.New()
 	svc := metadata.New(repo, cache)
 	h := grpchandler.New(svc)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", cfg.API.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

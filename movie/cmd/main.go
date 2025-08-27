@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"log"
+	"mmoviecom/movie/configs"
 	"mmoviecom/movie/internal/controller/movie"
 	metadatagateway "mmoviecom/movie/internal/gateway/metadata/grpc"
 	ratinggateway "mmoviecom/movie/internal/gateway/rating/grpc"
@@ -12,25 +13,33 @@ import (
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
 	"net/http"
+	"os"
 	"time"
 )
 
 const serviceName = "movie"
 
 func main() {
-	var port int
-	flag.IntVar(&port, "port", 8083, "API handler port")
-	flag.Parse()
-	log.Printf("Starting the movie service on port %d", port)
+	log.Printf("Starting the movie service")
 
-	registry, err := consul.NewRegistry("localhost:8500")
+	f, err := os.Open("defaults.yaml")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	var cfg configs.ServiceConfig
+	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+		panic(err)
+	}
+
+	registry, err := consul.NewRegistry(cfg.ServiceDiscovery.Consul.Address)
 	if err != nil {
 		panic(err)
 	}
 
 	ctx := context.Background()
 	instanceID := discovery.GenerateInstanceID(serviceName)
-	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("localhost:%d", port)); err != nil {
+	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("movie:%d", cfg.API.Port)); err != nil {
 		panic(err)
 	}
 	go func() {
@@ -48,7 +57,7 @@ func main() {
 	svc := movie.New(ratingGateway, metadataGateway)
 	h := moviehandler.New(svc)
 	http.Handle("/movie", http.HandlerFunc(h.GetMovieDetails))
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.API.Port), nil); err != nil {
 		panic(err)
 	}
 }

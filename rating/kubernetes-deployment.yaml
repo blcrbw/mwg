@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rating
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rating
+  template:
+    metadata:
+      labels:
+        app: rating
+    spec:
+      containers:
+        - name: rating
+          image: mwg-registry:5000/rating:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
