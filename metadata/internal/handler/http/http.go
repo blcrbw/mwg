@@ -6,6 +6,7 @@ import (
 	"log"
 	"mmoviecom/metadata/internal/controller/metadata"
 	"mmoviecom/metadata/internal/repository"
+	"mmoviecom/metadata/pkg/model"
 	"net/http"
 )
 
@@ -39,5 +40,45 @@ func (h *Handler) GetMetadata(w http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		log.Printf("Response encode error for movie %s: %v\n", id, err)
 		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+// PutMetadata handles PUT /metadata requests.
+func (h *Handler) PutMetadata(w http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	title := req.FormValue("title")
+	description := req.FormValue("description")
+	director := req.FormValue("director")
+	if id == "" || title == "" || description == "" || director == "" {
+		log.Printf("Incorrect movie metadata provided \n\tid: %s\n\ttitle: %s\n\tdescription: %s\n\tdirector: %s\n", id, title, description, director)
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	ctx := req.Context()
+	err := h.ctrl.Put(ctx, id, &model.Metadata{
+		ID:          id,
+		Title:       title,
+		Description: description,
+		Director:    director,
+	})
+	if err != nil {
+		log.Printf("Repository put error: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	return
+}
+
+// Handle handles PUT and GET /rating requests.
+func (h *Handler) Handle(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodGet:
+		h.GetMetadata(w, req)
+		return
+	case http.MethodPut:
+		h.PutMetadata(w, req)
+		return
+	default:
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }

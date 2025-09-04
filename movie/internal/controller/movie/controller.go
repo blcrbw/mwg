@@ -7,6 +7,9 @@ import (
 	"mmoviecom/movie/internal/gateway"
 	"mmoviecom/movie/pkg/model"
 	ratingmodel "mmoviecom/rating/pkg/model"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ErrNotFound is returned when the movie metadata not found.
@@ -42,7 +45,9 @@ func (c *Controller) Get(ctx context.Context, id string) (*model.MovieDetails, e
 	}
 	details := &model.MovieDetails{Metadata: *metadata}
 	rating, err := c.ratingGateway.GetAggregatedRating(ctx, ratingmodel.RecordId(id), ratingmodel.RecordTypeMovie)
-	if err != nil && errors.Is(err, ErrNotFound) {
+	if err != nil && errors.Is(err, errors.New("rating not found for a record")) {
+		// ok
+	} else if err != nil && errors.Is(err, status.Errorf(codes.NotFound, "rating not found for a record")) {
 		// ok
 	} else if err != nil {
 		return nil, err

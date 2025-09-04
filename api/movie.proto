@@ -15,7 +15,7 @@ message MovieDetails {
 
 service MetadataService {
   rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);
-//  rpc PutMetadata(PutMetadataRequest) returns (PutMetadataResponse);
+  rpc PutMetadata(PutMetadataRequest) returns (PutMetadataResponse);
 }
 
 message GetMetadataRequest {

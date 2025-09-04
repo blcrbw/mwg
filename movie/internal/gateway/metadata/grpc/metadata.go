@@ -32,3 +32,18 @@ func (g *Gateway) Get(ctx context.Context, id string) (*model.Metadata, error) {
 	}
 	return model.MetadataFromProto(resp.Metadata), nil
 }
+
+// Put stores movie metadata by a movie id.
+func (g *Gateway) Put(ctx context.Context, metadata *model.Metadata) error {
+	conn, err := grpcutil.ServiceConnection(ctx, "metadata", g.registry)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gen.NewMetadataServiceClient(conn)
+	_, err = client.PutMetadata(ctx, &gen.PutMetadataRequest{Metadata: model.MetadataToProto(metadata)})
+	if err != nil {
+		return err
+	}
+	return nil
+}

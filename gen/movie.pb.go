@@ -633,9 +633,10 @@ const file_movie_proto_rawDesc = "" +
 	"\x16GetMovieDetailsRequest\x12\x19\n" +
 	"\bmovie_id\x18\x01 \x01(\tR\amovieId\"M\n" +
 	"\x17GetMovieDetailsResponse\x122\n" +
-	"\rmovie_details\x18\x01 \x01(\v2\r.MovieDetailsR\fmovieDetails2K\n" +
+	"\rmovie_details\x18\x01 \x01(\v2\r.MovieDetailsR\fmovieDetails2\x85\x01\n" +
 	"\x0fMetadataService\x128\n" +
-	"\vGetMetadata\x12\x13.GetMetadataRequest\x1a\x14.GetMetadataResponse2\x95\x01\n" +
+	"\vGetMetadata\x12\x13.GetMetadataRequest\x1a\x14.GetMetadataResponse\x128\n" +
+	"\vPutMetadata\x12\x13.PutMetadataRequest\x1a\x14.PutMetadataResponse2\x95\x01\n" +
 	"\rRatingService\x12P\n" +
 	"\x13GetAggregatedRating\x12\x1b.GetAggregatedRatingRequest\x1a\x1c.GetAggregatedRatingResponse\x122\n" +
 	"\tPutRating\x12\x11.PutRatingRequest\x1a\x12.PutRatingResponse2T\n" +
@@ -675,15 +676,17 @@ var file_movie_proto_depIdxs = []int32{
 	0,  // 2: PutMetadataRequest.metadata:type_name -> Metadata
 	1,  // 3: GetMovieDetailsResponse.movie_details:type_name -> MovieDetails
 	2,  // 4: MetadataService.GetMetadata:input_type -> GetMetadataRequest
-	6,  // 5: RatingService.GetAggregatedRating:input_type -> GetAggregatedRatingRequest
-	8,  // 6: RatingService.PutRating:input_type -> PutRatingRequest
-	10, // 7: MovieService.GetMovieDetails:input_type -> GetMovieDetailsRequest
-	3,  // 8: MetadataService.GetMetadata:output_type -> GetMetadataResponse
-	7,  // 9: RatingService.GetAggregatedRating:output_type -> GetAggregatedRatingResponse
-	9,  // 10: RatingService.PutRating:output_type -> PutRatingResponse
-	11, // 11: MovieService.GetMovieDetails:output_type -> GetMovieDetailsResponse
-	8,  // [8:12] is the sub-list for method output_type
-	4,  // [4:8] is the sub-list for method input_type
+	4,  // 5: MetadataService.PutMetadata:input_type -> PutMetadataRequest
+	6,  // 6: RatingService.GetAggregatedRating:input_type -> GetAggregatedRatingRequest
+	8,  // 7: RatingService.PutRating:input_type -> PutRatingRequest
+	10, // 8: MovieService.GetMovieDetails:input_type -> GetMovieDetailsRequest
+	3,  // 9: MetadataService.GetMetadata:output_type -> GetMetadataResponse
+	5,  // 10: MetadataService.PutMetadata:output_type -> PutMetadataResponse
+	7,  // 11: RatingService.GetAggregatedRating:output_type -> GetAggregatedRatingResponse
+	9,  // 12: RatingService.PutRating:output_type -> PutRatingResponse
+	11, // 13: MovieService.GetMovieDetails:output_type -> GetMovieDetailsResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name

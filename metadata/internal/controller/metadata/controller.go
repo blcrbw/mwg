@@ -27,6 +27,7 @@ func New(repo metadataRepository, cache metadataRepository) *Controller {
 	return &Controller{repo: repo, cache: cache}
 }
 
+// Get returns movie metadata by given id.
 func (c *Controller) Get(ctx context.Context, id string) (*model.Metadata, error) {
 	cacheRes, err := c.cache.Get(ctx, id)
 	if err == nil {
@@ -37,6 +38,8 @@ func (c *Controller) Get(ctx context.Context, id string) (*model.Metadata, error
 	res, err := c.repo.Get(ctx, id)
 	if err != nil && errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
 	}
 
 	if err := c.cache.Put(ctx, id, res); err != nil {
@@ -44,4 +47,10 @@ func (c *Controller) Get(ctx context.Context, id string) (*model.Metadata, error
 	}
 
 	return res, err
+}
+
+// Put stores metadata in the repository.
+func (c *Controller) Put(ctx context.Context, id string, metadata *model.Metadata) error {
+	err := c.repo.Put(ctx, id, metadata)
+	return err
 }

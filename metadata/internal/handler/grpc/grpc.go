@@ -3,11 +3,12 @@ package grpc
 import (
 	"context"
 	"errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"mmoviecom/gen"
 	"mmoviecom/metadata/internal/controller/metadata"
 	"mmoviecom/metadata/pkg/model"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Handler deefines a movie metadata gRPC handler.
@@ -33,4 +34,16 @@ func (h *Handler) GetMetadata(ctx context.Context, req *gen.GetMetadataRequest) 
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &gen.GetMetadataResponse{Metadata: model.MetadataToProto(m)}, nil
+}
+
+// PutMetadata receives movie metadata and stores it.
+func (h *Handler) PutMetadata(ctx context.Context, req *gen.PutMetadataRequest) (*gen.PutMetadataResponse, error) {
+	if req == nil || req.Metadata == nil {
+		return nil, status.Error(codes.InvalidArgument, "nil req or metadata")
+	}
+	if err := h.ctrl.Put(ctx, req.Metadata.Id, model.MetadataFromProto(req.Metadata)); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &gen.PutMetadataResponse{}, nil
 }
