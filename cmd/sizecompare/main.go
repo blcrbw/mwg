@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"mmoviecom/gen"
 	"mmoviecom/metadata/pkg/model"
+
+	"google.golang.org/protobuf/proto"
 )
 
 var metadata = &model.Metadata{
