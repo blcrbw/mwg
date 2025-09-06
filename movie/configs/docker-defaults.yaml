@@ -1,0 +1,5 @@
+api:
+  port: 8083
+serviceDiscovery:
+  consul:
+    address: http://consul:8500

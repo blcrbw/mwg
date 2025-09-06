@@ -4,8 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	_ "github.com/go-sql-driver/mysql"
+	"fmt"
+	"log"
+	"mmoviecom/rating/configs"
 	"mmoviecom/rating/pkg/model"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // Repository defines a MySQL-based rating repository.
@@ -14,8 +18,8 @@ type Repository struct {
 }
 
 // New creates a new MySQL-based rating repository.
-func New() (*Repository, error) {
-	db, err := sql.Open("mysql", "root:password@/db")
+func New(config configs.MysqlConfig) (*Repository, error) {
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", config.User, config.Pass, config.Host, config.Port, config.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -24,8 +28,10 @@ func New() (*Repository, error) {
 
 // Get retrieves all ratings for a given record.
 func (r *Repository) Get(ctx context.Context, recordId model.RecordId, recordType model.RecordType) ([]model.Rating, error) {
+	log.Printf("Trying to get rating from MySQL for record: %s/%s", recordType, recordId)
 	rows, err := r.db.QueryContext(ctx, "SELECT user_id, value FROM ratings WHERE record_id = ? AND record_type = ?", recordId, recordType)
 	if err != nil {
+		log.Printf("Failed to get rating from MySQL for record: %s/%s. Error: %v", recordType, recordId, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -34,6 +40,7 @@ func (r *Repository) Get(ctx context.Context, recordId model.RecordId, recordTyp
 		var userID string
 		var value int32
 		if err := rows.Scan(&userID, &value); err != nil {
+			log.Printf("Failed to get rating items from MySQL for record: %s/%s. Error: %v", recordType, recordId, err)
 			return nil, err
 		}
 		res = append(res, model.Rating{

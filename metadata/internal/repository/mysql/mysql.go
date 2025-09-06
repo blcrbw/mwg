@@ -4,9 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	_ "github.com/go-sql-driver/mysql"
+	"fmt"
+	"log"
+	"mmoviecom/metadata/configs"
 	"mmoviecom/metadata/internal/repository"
 	"mmoviecom/metadata/pkg/model"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // Repository defines a MySQL-based movie metadata repository.
@@ -15,8 +19,10 @@ type Repository struct {
 }
 
 // New creates a new MySQL-based repository.
-func New() (*Repository, error) {
-	db, err := sql.Open("mysql", "root:password@/db")
+func New(config configs.MysqlConfig) (*Repository, error) {
+	connString := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", config.User, config.Pass, config.Host, config.Port, config.Name)
+	log.Printf("connecting to mysql %s", connString)
+	db, err := sql.Open("mysql", connString)
 	if err != nil {
 		return nil, err
 	}
@@ -26,8 +32,10 @@ func New() (*Repository, error) {
 // Get retrieves movie metadata by a movie id.
 func (r *Repository) Get(ctx context.Context, id string) (*model.Metadata, error) {
 	var title, description, director string
+	log.Println("Trying to get metadata from MySQL by id: ", id)
 	row := r.db.QueryRowContext(ctx, "SELECT title, description, director FROM movies WHERE id=?", id)
 	if err := row.Scan(&title, &description, &director); err != nil {
+		log.Printf("Failed to get metadata from MySQL by id: %s. Error: %v", id, err)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}
@@ -43,7 +51,11 @@ func (r *Repository) Get(ctx context.Context, id string) (*model.Metadata, error
 
 // Put adds movie metadata for a given movie id.
 func (r *Repository) Put(ctx context.Context, id string, m *model.Metadata) error {
+	log.Println("Trying to put metadata to MySQL by id: ", id)
 	_, err := r.db.ExecContext(ctx, "INSERT INTO movies (id, title, description, director) VALUES (?, ?, ?, ?)",
 		id, m.Title, m.Description, m.Director)
+	if err != nil {
+		log.Printf("Failed to get metadata ti MySQL by id: %s. Error: %v", id, err)
+	}
 	return err
 }

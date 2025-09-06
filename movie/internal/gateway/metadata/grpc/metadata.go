@@ -6,21 +6,24 @@ import (
 	"mmoviecom/internal/grpcutil"
 	"mmoviecom/metadata/pkg/model"
 	"mmoviecom/pkg/discovery"
+
+	"google.golang.org/grpc/credentials"
 )
 
 // Gateway defines a movie metadata gRPC gateway.
 type Gateway struct {
 	registry discovery.Registry
+	creds    credentials.TransportCredentials
 }
 
 // New creates a new gRPC gateway for a movie metadata service.
-func New(registry discovery.Registry) *Gateway {
-	return &Gateway{registry: registry}
+func New(registry discovery.Registry, creds credentials.TransportCredentials) *Gateway {
+	return &Gateway{registry: registry, creds: creds}
 }
 
 // Get returns movie metadata by a movie id.
 func (g *Gateway) Get(ctx context.Context, id string) (*model.Metadata, error) {
-	conn, err := grpcutil.ServiceConnection(ctx, "metadata", g.registry)
+	conn, err := grpcutil.ServiceConnection(ctx, "metadata", g.registry, g.creds)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +38,7 @@ func (g *Gateway) Get(ctx context.Context, id string) (*model.Metadata, error) {
 
 // Put stores movie metadata by a movie id.
 func (g *Gateway) Put(ctx context.Context, metadata *model.Metadata) error {
-	conn, err := grpcutil.ServiceConnection(ctx, "metadata", g.registry)
+	conn, err := grpcutil.ServiceConnection(ctx, "metadata", g.registry, g.creds)
 	if err != nil {
 		return err
 	}

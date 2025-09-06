@@ -2,11 +2,11 @@ api:
   port: 8081
 serviceDiscovery:
   consul:
-    address: http://localhost:8500
+    address: http://consul:8500
 database:
   mysql:
     user: root
     password: password
     db_name: mvdb
-    host: localhost
+    host: db
     port: 3306

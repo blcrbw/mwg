@@ -1,12 +1,16 @@
 api:
-  port: 8081
+  port: 8082
 serviceDiscovery:
   consul:
-    address: http://localhost:8500
+    address: http://consul:8500
+messenger:
+  kafka:
+    Address: kafka
+    Port: 9092
 database:
   mysql:
     user: root
     password: password
     db_name: mvdb
-    host: localhost
+    host: db
     port: 3306

@@ -3,3 +3,14 @@ api:
 serviceDiscovery:
   consul:
     address: http://consul-server.consul.svc.cluster.local:8500
+messenger:
+  kafka:
+    Address: localhost
+    Port: 9092
+database:
+  mysql:
+    user: root
+    password: password
+    db_name: db
+    host: localhost
+    port: 3306

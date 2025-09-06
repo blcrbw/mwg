@@ -2,19 +2,26 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"log"
+	"mmoviecom/gen"
 	"mmoviecom/movie/configs"
 	"mmoviecom/movie/internal/controller/movie"
 	metadatagateway "mmoviecom/movie/internal/gateway/metadata/grpc"
 	ratinggateway "mmoviecom/movie/internal/gateway/rating/grpc"
-	moviehandler "mmoviecom/movie/internal/handler/http"
+	moviegrpchandler "mmoviecom/movie/internal/handler/grpc"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
-	"net/http"
+	"net"
 	"os"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
+	"gopkg.in/yaml.v3"
 )
 
 const serviceName = "movie"
@@ -52,12 +59,35 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceID, serviceName)
 
-	metadataGateway := metadatagateway.New(registry)
-	ratingGateway := ratinggateway.New(registry)
+	certBytes, err := os.ReadFile("cert.crt")
+	if err != nil {
+		log.Fatalf("Failed to read certificate: %v", err)
+	}
+	certPool := x509.NewCertPool()
+	if !certPool.AppendCertsFromPEM(certBytes) {
+		log.Fatalf("Failed to append certificate")
+	}
+	cert, err := tls.LoadX509KeyPair("cert.crt", "cert.key")
+	if err != nil {
+		log.Fatalf("Failed to load key pair: %v", err)
+	}
+	creds := credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      certPool,
+	})
+	metadataGateway := metadatagateway.New(registry, creds)
+	ratingGateway := ratinggateway.New(registry, creds)
 	svc := movie.New(ratingGateway, metadataGateway)
-	h := moviehandler.New(svc)
-	http.Handle("/movie", http.HandlerFunc(h.GetMovieDetails))
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.API.Port), nil); err != nil {
+	h := moviegrpchandler.New(svc)
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	srv := grpc.NewServer(grpc.Creds(creds))
+	gen.RegisterMovieServiceServer(srv, h)
+	reflection.Register(srv)
+	if err := srv.Serve(lis); err != nil {
 		panic(err)
 	}
 }
