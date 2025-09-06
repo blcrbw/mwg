@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"log"
 	"mmoviecom/gen"
+	"mmoviecom/internal/grpcutil"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
 	"mmoviecom/rating/configs"
 	"mmoviecom/rating/internal/controller/rating"
+	authgateway "mmoviecom/rating/internal/gateway/auth/grpc"
 	grpchandler "mmoviecom/rating/internal/handler/grpc"
 	"mmoviecom/rating/internal/ingester/kafka"
 	"mmoviecom/rating/internal/repository/mysql"
@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"gopkg.in/yaml.v3"
 )
@@ -67,30 +66,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize ingester: %v", err)
 	}
-	svc := rating.New(repo, ingester)
+
+	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
+	auth := authgateway.New(registry, creds)
+	svc := rating.New(repo, ingester, auth)
 	go func() {
 		if err := svc.StartIngestion(ctx); err != nil {
 			log.Fatalf("Failed to start ingestion: %v", err)
 		}
 	}()
 	h := grpchandler.New(svc)
-
-	certBytes, err := os.ReadFile("cert.crt")
-	if err != nil {
-		log.Fatalf("Failed to read certificate: %v", err)
-	}
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(certBytes) {
-		log.Fatalf("Failed to append certificate")
-	}
-	cert, err := tls.LoadX509KeyPair("cert.crt", "cert.key")
-	if err != nil {
-		log.Fatalf("Failed to load key pair: %v", err)
-	}
-	creds := credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      certPool,
-	})
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {

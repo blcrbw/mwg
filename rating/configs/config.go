@@ -5,6 +5,7 @@ type ServiceConfig struct {
 	ServiceDiscovery serviceDiscoveryConfig `yaml:"serviceDiscovery"`
 	MessengerConfig  MessengerConfig        `yaml:"messenger"`
 	DatabaseConfig   DatabaseConfig         `yaml:"database"`
+	AuthConfig       AuthConfig             `yaml:"auth"`
 }
 
 type apiConfig struct {
@@ -37,4 +38,9 @@ type MysqlConfig struct {
 	User string `yaml:"user"`
 	Pass string `yaml:"password"`
 	Name string `yaml:"db_name"`
+}
+
+type AuthConfig struct {
+	Host string `yaml:"host"`
+	Port int    `yaml:"port" default:"8084"`
 }

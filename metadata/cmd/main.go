@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"log"
 	"mmoviecom/gen"
+	"mmoviecom/internal/grpcutil"
 	"mmoviecom/metadata/configs"
 	"mmoviecom/metadata/internal/controller/metadata"
 	grpchandler "mmoviecom/metadata/internal/handler/grpc"
@@ -19,7 +18,6 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"gopkg.in/yaml.v3"
 )
@@ -65,23 +63,7 @@ func main() {
 	svc := metadata.New(repo, cache)
 	h := grpchandler.New(svc)
 
-	certBytes, err := os.ReadFile("cert.crt")
-	if err != nil {
-		log.Fatalf("Failed to read certificate: %v", err)
-	}
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(certBytes) {
-		log.Fatalf("Failed to append certificate")
-	}
-	cert, err := tls.LoadX509KeyPair("cert.crt", "cert.key")
-	if err != nil {
-		log.Fatalf("Failed to load key pair: %v", err)
-	}
-	creds := credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      certPool,
-	})
-
+	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

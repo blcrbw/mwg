@@ -10,6 +10,7 @@ import (
 
 // ErrNotFound returned when no ratings are found for a record.
 var ErrNotFound = errors.New("rating not found for a record")
+var ErrTokenIsEmpty = errors.New("token is empty")
 
 type ratingRepository interface {
 	Get(ctx context.Context, recordId model.RecordId, recordType model.RecordType) ([]model.Rating, error)
@@ -20,15 +21,20 @@ type ratingIngester interface {
 	Ingest(ctx context.Context) (chan model.RatingEvent, error)
 }
 
+type AuthGateway interface {
+	ValidateToken(ctx context.Context, token string) (string, error)
+}
+
 // Controller defines a rating service controller.
 type Controller struct {
 	repo     ratingRepository
 	ingester ratingIngester
+	auth     AuthGateway
 }
 
 // New creates a rating service controller.
-func New(repo ratingRepository, ingester ratingIngester) *Controller {
-	return &Controller{repo: repo, ingester: ingester}
+func New(repo ratingRepository, ingester ratingIngester, auth AuthGateway) *Controller {
+	return &Controller{repo: repo, ingester: ingester, auth: auth}
 }
 
 // GetAggregatedRating returns the aggregated rating for a
@@ -52,6 +58,21 @@ func (c *Controller) GetAggregatedRating(ctx context.Context, recordId model.Rec
 // PutRating writes a rating for a given record.
 func (c *Controller) PutRating(ctx context.Context, recordId model.RecordId, recordType model.RecordType, record *model.Rating) error {
 	return c.repo.Put(ctx, recordId, recordType, record)
+}
+
+// ValidateToken validates token, get user id from token and compares with record one.
+func (c *Controller) ValidateToken(ctx context.Context, token string, record *model.Rating) error {
+	if token == "" {
+		return ErrTokenIsEmpty
+	}
+	user, err := c.auth.ValidateToken(ctx, token)
+	if err != nil {
+		return err
+	}
+	if user == "" || user != string(record.UserId) {
+		return errors.New("incorrect token")
+	}
+	return nil
 }
 
 // StartIngestion starts the ingestion of rating events.

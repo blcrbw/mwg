@@ -81,6 +81,7 @@ services:
     depends_on:
       - kafka
       - db
+      - auth
     networks:
       - mwg
 
@@ -95,6 +96,22 @@ services:
       - ./metadata/configs/docker-defaults.yaml:/app/defaults.yaml
       - ./metadata/configs/cert.crt:/app/cert.crt
       - ./metadata/configs/cert.key:/app/cert.key
+    depends_on:
+      - db
+    networks:
+      - mwg
+
+  auth:
+    # image: auth:latest
+    build: ./auth
+    container_name: auth
+    restart: on-failure
+    ports:
+      - 8084:8084
+    volumes:
+      - ./auth/configs/docker-defaults.yaml:/app/defaults.yaml
+      - ./auth/configs/cert.crt:/app/cert.crt
+      - ./auth/configs/cert.key:/app/cert.key
     depends_on:
       - db
     networks:

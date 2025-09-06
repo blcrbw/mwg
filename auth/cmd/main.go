@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"mmoviecom/auth/configs"
+	grpchandler "mmoviecom/auth/internal/handler/grpc"
 	"mmoviecom/gen"
 	"mmoviecom/internal/grpcutil"
-	"mmoviecom/movie/configs"
-	"mmoviecom/movie/internal/controller/movie"
-	metadatagateway "mmoviecom/movie/internal/gateway/metadata/grpc"
-	ratinggateway "mmoviecom/movie/internal/gateway/rating/grpc"
-	moviegrpchandler "mmoviecom/movie/internal/handler/grpc"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
 	"net"
@@ -22,11 +19,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const serviceName = "movie"
+const serviceName = "auth"
 
 func main() {
-	log.Printf("Starting the movie service")
-
 	f, err := os.Open("defaults.yaml")
 	if err != nil {
 		panic(err)
@@ -37,6 +32,7 @@ func main() {
 		panic(err)
 	}
 
+	log.Printf("Starting the auth service on port %d", cfg.API.Port)
 	registry, err := consul.NewRegistry(cfg.ServiceDiscovery.Consul.Address)
 	if err != nil {
 		panic(err)
@@ -44,7 +40,7 @@ func main() {
 
 	ctx := context.Background()
 	instanceID := discovery.GenerateInstanceID(serviceName)
-	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("movie:%d", cfg.API.Port)); err != nil {
+	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("auth:%d", cfg.API.Port)); err != nil {
 		panic(err)
 	}
 	go func() {
@@ -57,19 +53,18 @@ func main() {
 	}()
 	defer registry.Deregister(ctx, instanceID, serviceName)
 
-	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
-	metadataGateway := metadatagateway.New(registry, creds)
-	ratingGateway := ratinggateway.New(registry, creds)
-	svc := movie.New(ratingGateway, metadataGateway)
-	h := moviegrpchandler.New(svc)
-
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+	h := grpchandler.New(func() []byte {
+		return []byte("test-secret")
+	})
+
+	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
 	srv := grpc.NewServer(grpc.Creds(creds))
-	gen.RegisterMovieServiceServer(srv, h)
 	reflection.Register(srv)
+	gen.RegisterAuthServiceServer(srv, h)
 	if err := srv.Serve(lis); err != nil {
 		panic(err)
 	}

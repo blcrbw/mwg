@@ -51,7 +51,8 @@ message PutRatingRequest {
   string user_id = 1;
   string record_id = 2;
   string record_type = 3;
-  int32 rating_value = 4;
+  int32  rating_value = 4;
+  string token = 5;
 }
 
 message PutRatingResponse {

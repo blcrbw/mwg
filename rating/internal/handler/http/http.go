@@ -34,6 +34,12 @@ func (h *Handler) Handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	token := req.FormValue("token")
+	if token == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	switch req.Method {
 	case http.MethodGet:
 		v, err := h.ctrl.GetAggregatedRating(req.Context(), recordId, recordType)
@@ -53,7 +59,12 @@ func (h *Handler) Handle(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if err := h.ctrl.PutRating(req.Context(), recordId, recordType, &model.Rating{UserId: userId, Value: model.RatingValue(v)}); err != nil {
+		record := model.Rating{UserId: userId, Value: model.RatingValue(v)}
+		if err := h.ctrl.ValidateToken(req.Context(), token, &record); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		if err := h.ctrl.PutRating(req.Context(), recordId, recordType, &record); err != nil {
 			log.Printf("Repository put error: %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}

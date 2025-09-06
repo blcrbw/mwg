@@ -411,6 +411,7 @@ type PutRatingRequest struct {
 	RecordId      string                 `protobuf:"bytes,2,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
 	RecordType    string                 `protobuf:"bytes,3,opt,name=record_type,json=recordType,proto3" json:"record_type,omitempty"`
 	RatingValue   int32                  `protobuf:"varint,4,opt,name=rating_value,json=ratingValue,proto3" json:"rating_value,omitempty"`
+	Token         string                 `protobuf:"bytes,5,opt,name=token,proto3" json:"token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -471,6 +472,13 @@ func (x *PutRatingRequest) GetRatingValue() int32 {
 		return x.RatingValue
 	}
 	return 0
+}
+
+func (x *PutRatingRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
 }
 
 type PutRatingResponse struct {
@@ -622,13 +630,14 @@ const file_movie_proto_rawDesc = "" +
 	"\vrecord_type\x18\x02 \x01(\tR\n" +
 	"recordType\"@\n" +
 	"\x1bGetAggregatedRatingResponse\x12!\n" +
-	"\frating_value\x18\x01 \x01(\x01R\vratingValue\"\x8c\x01\n" +
+	"\frating_value\x18\x01 \x01(\x01R\vratingValue\"\xa2\x01\n" +
 	"\x10PutRatingRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trecord_id\x18\x02 \x01(\tR\brecordId\x12\x1f\n" +
 	"\vrecord_type\x18\x03 \x01(\tR\n" +
 	"recordType\x12!\n" +
-	"\frating_value\x18\x04 \x01(\x05R\vratingValue\"\x13\n" +
+	"\frating_value\x18\x04 \x01(\x05R\vratingValue\x12\x14\n" +
+	"\x05token\x18\x05 \x01(\tR\x05token\"\x13\n" +
 	"\x11PutRatingResponse\"3\n" +
 	"\x16GetMovieDetailsRequest\x12\x19\n" +
 	"\bmovie_id\x18\x01 \x01(\tR\amovieId\"M\n" +

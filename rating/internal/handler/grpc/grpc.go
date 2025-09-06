@@ -3,11 +3,12 @@ package grpc
 import (
 	"context"
 	"errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"mmoviecom/gen"
 	"mmoviecom/rating/internal/controller/rating"
 	"mmoviecom/rating/pkg/model"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Handler define a gRPC rating API handler.
@@ -37,10 +38,14 @@ func (h *Handler) GetAggregatedRating(ctx context.Context, req *gen.GetAggregate
 
 // PutRating writes a rating for a given record.
 func (h *Handler) PutRating(ctx context.Context, req *gen.PutRatingRequest) (*gen.PutRatingResponse, error) {
-	if req == nil || req.RecordId == "" || req.RecordType == "" || req.UserId == "" {
-		return nil, status.Error(codes.InvalidArgument, "nil req or empty user id or record id/type")
+	if req == nil || req.RecordId == "" || req.RecordType == "" || req.UserId == "" || req.Token == "" {
+		return nil, status.Error(codes.InvalidArgument, "nil req or empty user id or record id/type or token")
 	}
-	if err := h.svc.PutRating(ctx, model.RecordId(req.RecordId), model.RecordType(req.RecordType), &model.Rating{UserId: model.UserId(req.UserId), Value: model.RatingValue(req.RatingValue)}); err != nil {
+	record := model.Rating{UserId: model.UserId(req.UserId), Value: model.RatingValue(req.RatingValue)}
+	if err := h.svc.ValidateToken(ctx, req.GetToken(), &record); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if err := h.svc.PutRating(ctx, model.RecordId(req.RecordId), model.RecordType(req.RecordType), &record); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &gen.PutRatingResponse{}, nil

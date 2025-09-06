@@ -14,3 +14,6 @@ database:
     db_name: db
     host: localhost
     port: 3306
+auth:
+  host: localhost
+  port: 8084

@@ -100,6 +100,9 @@ func main() {
 		log.Fatalf("get movie details after put mismatch: %v", diff)
 	}
 
+	// @TODO: get user token.
+	token := "1"
+
 	log.Println("Saving first rating via rating service")
 	const userID = "user0"
 	const recordTypeMovie = "movie"
@@ -109,6 +112,7 @@ func main() {
 		RecordId:    m.Id,
 		RecordType:  recordTypeMovie,
 		RatingValue: firstRating,
+		Token:       token,
 	}); err != nil {
 		log.Fatalf("put rating: %v", err)
 	}
@@ -133,6 +137,7 @@ func main() {
 		RecordId:    m.Id,
 		RecordType:  recordTypeMovie,
 		RatingValue: secondRating,
+		Token:       token,
 	}); err != nil {
 		log.Fatalf("put rating: %v", err)
 	}

@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/consul/api v1.32.1
 	github.com/stretchr/testify v1.9.0

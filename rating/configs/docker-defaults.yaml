@@ -14,3 +14,6 @@ database:
     db_name: mvdb
     host: db
     port: 3306
+auth:
+  host: auth
+  port: 8084
