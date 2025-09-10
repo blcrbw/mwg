@@ -7,13 +7,18 @@ import (
 	ratinggateway "mmoviecom/movie/internal/gateway/rating/grpc"
 	"mmoviecom/movie/internal/handler/grpc"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/logging"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewTestMovieGRPCServer(registry discovery.Registry) gen.MovieServiceServer {
-	m := metadatagateway.New(registry, insecure.NewCredentials())
-	r := ratinggateway.New(registry, insecure.NewCredentials())
-	ctrl := movie.New(r, m)
-	return grpc.New(ctrl)
+func NewTestMovieGRPCServer(registry discovery.Registry, logger *zap.Logger) gen.MovieServiceServer {
+	logger = logger.With(
+		zap.String(logging.FieldService, "movie"),
+	)
+	m := metadatagateway.New(registry, insecure.NewCredentials(), logger)
+	r := ratinggateway.New(registry, insecure.NewCredentials(), logger)
+	ctrl := movie.New(r, m, logger)
+	return grpc.New(ctrl, logger)
 }

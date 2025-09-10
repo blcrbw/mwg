@@ -5,8 +5,10 @@ import (
 	"mmoviecom/gen"
 	"mmoviecom/internal/grpcutil"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/logging"
 	"mmoviecom/rating/pkg/model"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -14,11 +16,16 @@ import (
 type Gateway struct {
 	registry discovery.Registry
 	creds    credentials.TransportCredentials
+	logger   *zap.Logger
 }
 
 // New creates a new gPRC gateway for a rating service.
-func New(registry discovery.Registry, creds credentials.TransportCredentials) *Gateway {
-	return &Gateway{registry: registry, creds: creds}
+func New(registry discovery.Registry, creds credentials.TransportCredentials, logger *zap.Logger) *Gateway {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "rating-gateway"),
+		zap.String(logging.FieldType, "grpc"),
+	)
+	return &Gateway{registry: registry, creds: creds, logger: logger}
 }
 
 // GetAggregatedRating returns the aggregated rating for a

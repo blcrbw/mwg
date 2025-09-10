@@ -3,12 +3,13 @@ package movie
 import (
 	"context"
 	"errors"
-	"log"
 	metadatamodel "mmoviecom/metadata/pkg/model"
 	"mmoviecom/movie/internal/gateway"
 	"mmoviecom/movie/pkg/model"
+	"mmoviecom/pkg/logging"
 	ratingmodel "mmoviecom/rating/pkg/model"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -30,19 +31,23 @@ type metadataGateway interface {
 type Controller struct {
 	ratingGateway   ratingGateway
 	metadataGateway metadataGateway
+	logger          *zap.Logger
 }
 
 // New creates a movie service controller.
-func New(gateway ratingGateway, metadataGateway metadataGateway) *Controller {
-	return &Controller{gateway, metadataGateway}
+func New(gateway ratingGateway, metadataGateway metadataGateway, logger *zap.Logger) *Controller {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "controller"),
+	)
+	return &Controller{gateway, metadataGateway, logger}
 }
 
 // Get returns the movie details including the aggregated rating and movie metadata.
 func (c *Controller) Get(ctx context.Context, id string) (*model.MovieDetails, error) {
-	log.Printf("Trying to get metadata from gateway by id: %s", id)
+	c.logger.Debug("Trying to get metadata from gateway", zap.String("id", id))
 	metadata, err := c.metadataGateway.Get(ctx, id)
 	if err != nil {
-		log.Printf("Failed to get metadata from gateway by id: %s. Error: %v", id, err)
+		c.logger.Warn("Failed to get metadata from gateway", zap.String("id", id), zap.Error(err))
 	}
 
 	if err != nil && errors.Is(err, gateway.ErrNotFound) {
@@ -52,14 +57,14 @@ func (c *Controller) Get(ctx context.Context, id string) (*model.MovieDetails, e
 	}
 	details := &model.MovieDetails{Metadata: *metadata}
 
-	log.Printf("Trying to get rating from gateway by id: %s", id)
+	c.logger.Debug("Trying to get rating from gateway", zap.String("id", id))
 	rating, err := c.ratingGateway.GetAggregatedRating(ctx, ratingmodel.RecordId(id), ratingmodel.RecordTypeMovie)
 	if err != nil && errors.Is(err, errors.New("rating not found for a record")) {
 		// ok
 	} else if err != nil && errors.Is(err, status.Errorf(codes.NotFound, "rating not found for a record")) {
 		// ok
 	} else if err != nil {
-		log.Printf("Failed to get rating from gateway by id: %s. Error: %v", id, err)
+		c.logger.Warn("Failed to get rating from gateway", zap.String("id", id), zap.Error(err))
 		return nil, err
 	} else {
 		details.Rating = &rating

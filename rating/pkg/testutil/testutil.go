@@ -1,27 +1,31 @@
 package testutil
 
 import (
-	"log"
 	"mmoviecom/gen"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/logging"
 	"mmoviecom/rating/internal/controller/rating"
 	authgateway "mmoviecom/rating/internal/gateway/auth/grpc"
 	"mmoviecom/rating/internal/handler/grpc"
 	"mmoviecom/rating/internal/ingester/kafka"
 	"mmoviecom/rating/internal/repository/memory"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewTestRatingGRPCServer(registry discovery.Registry) gen.RatingServiceServer {
-	r := memory.New()
+func NewTestRatingGRPCServer(registry discovery.Registry, logger *zap.Logger) gen.RatingServiceServer {
+	logger = logger.With(
+		zap.String(logging.FieldService, "rating"),
+	)
+	r := memory.New(logger)
 
-	ingester, err := kafka.NewIngester("localhost", "rating", "ratings")
+	ingester, err := kafka.NewIngester("localhost", "rating", "ratings", logger)
 	if err != nil {
-		log.Fatalf("Failed to initialize ingester: %v", err)
+		logger.Fatal("Failed to initialize ingester", zap.Error(err))
 	}
 
-	auth := authgateway.New(registry, insecure.NewCredentials())
-	ctrl := rating.New(r, ingester, auth)
-	return grpc.New(ctrl)
+	auth := authgateway.New(registry, insecure.NewCredentials(), logger)
+	ctrl := rating.New(r, ingester, auth, logger)
+	return grpc.New(ctrl, logger)
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	authtest "mmoviecom/auth/pkg/testutil"
 	"mmoviecom/gen"
 	metadatatest "mmoviecom/metadata/pkg/testutil"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -32,20 +32,25 @@ const (
 )
 
 func main() {
-	log.Println("Starting the integration test")
+	log, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	log = log.With(zap.String("env", "integration-test"))
+	log.Info("Starting the integration test")
 
 	ctx := context.Background()
-	registry := memory.NewRegistry()
+	registry := memory.NewRegistry(log)
 
-	log.Println("Setting up service handlers and clients")
+	log.Info("Setting up service handlers and clients")
 
-	authSrv := startAuthService(ctx, registry)
+	authSrv := startAuthService(ctx, registry, log)
 	defer authSrv.GracefulStop()
-	metadataSrv := startMetadataService(ctx, registry)
+	metadataSrv := startMetadataService(ctx, registry, log)
 	defer metadataSrv.GracefulStop()
-	ratingSrv := startRatingService(ctx, registry)
+	ratingSrv := startRatingService(ctx, registry, log)
 	defer ratingSrv.GracefulStop()
-	movieSrv := startMovieService(ctx, registry)
+	movieSrv := startMovieService(ctx, registry, log)
 	defer movieSrv.GracefulStop()
 
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -77,7 +82,7 @@ func main() {
 	defer authConn.Close()
 	authClient := gen.NewAuthServiceClient(authConn)
 
-	log.Println("Saving test metadata via metadata service")
+	log.Info("Saving test metadata via metadata service")
 	m := &gen.Metadata{
 		Id:          "the-movie",
 		Title:       "The Movie",
@@ -86,58 +91,58 @@ func main() {
 	}
 
 	if _, err := metadataClient.PutMetadata(ctx, &gen.PutMetadataRequest{Metadata: m}); err != nil {
-		log.Fatalf("put metadata: %v", err)
+		log.Fatal("put metadata", zap.Error(err))
 	}
 
-	log.Println("Retrieving test metadata via metadata service")
+	log.Info("Retrieving test metadata via metadata service")
 
 	getMetadataResp, err := metadataClient.GetMetadata(ctx, &gen.GetMetadataRequest{MovieId: m.Id})
 	if err != nil {
-		log.Fatalf("get metadata: %v", err)
+		log.Fatal("get metadata", zap.Error(err))
 	}
 	if diff := cmp.Diff(getMetadataResp.Metadata, m, cmpopts.IgnoreUnexported(gen.Metadata{})); diff != "" {
-		log.Fatalf("get metadata after put mismatch: %v", diff)
+		log.Fatal("get metadata after put mismatch", zap.String("diff", diff))
 	}
 
-	log.Println("Getting movie details via movie service")
+	log.Info("Getting movie details via movie service")
 	wantMovieDetails := &gen.MovieDetails{
 		Metadata: m,
 	}
 
 	getMovieDetailsResp, err := movieClient.GetMovieDetails(ctx, &gen.GetMovieDetailsRequest{MovieId: m.Id})
 	if err != nil {
-		log.Fatalf("get movie details: %v", err)
+		log.Fatal("get movie details", zap.Error(err))
 	}
 	if diff := cmp.Diff(getMovieDetailsResp.MovieDetails, wantMovieDetails, cmpopts.IgnoreUnexported(gen.MovieDetails{}, gen.Metadata{})); diff != "" {
-		log.Fatalf("get movie details after put mismatch: %v", diff)
+		log.Fatal("get movie details after put mismatch", zap.String("diff", diff))
 	}
 
 	const userID = "user0"
-	log.Println("Getting token via auth service")
+	log.Info("Getting token via auth service")
 	getTokenResp, err := authClient.GetToken(ctx, &gen.GetTokenRequest{
 		Username: userID,
 		Password: "password",
 	})
 	if err != nil {
-		log.Fatalf("get token: %v", err)
+		log.Fatal("get token", zap.Error(err))
 	}
 	token := getTokenResp.GetToken()
 	if token == "" {
-		log.Fatalf("get token: empty token")
+		log.Fatal("get token: empty token")
 	}
 
-	log.Println("Verifying token via auth service")
+	log.Info("Verifying token via auth service")
 	validateTokenResp, err := authClient.ValidateToken(ctx, &gen.ValidateTokenRequest{
 		Token: token,
 	})
 	if err != nil {
-		log.Fatalf("validate token: %v", err)
+		log.Fatal("validate token", zap.Error(err))
 	}
 	if validateTokenResp.GetUsername() != userID {
-		log.Fatalf("validate token: wrong username")
+		log.Fatal("validate token: wrong username")
 	}
 
-	log.Println("Saving first rating via rating service")
+	log.Info("Saving first rating via rating service")
 	const recordTypeMovie = "movie"
 	firstRating := int32(5)
 	if _, err = ratingClient.PutRating(ctx, &gen.PutRatingRequest{
@@ -147,23 +152,23 @@ func main() {
 		RatingValue: firstRating,
 		Token:       token,
 	}); err != nil {
-		log.Fatalf("put rating: %v", err)
+		log.Fatal("put rating", zap.Error(err))
 	}
 
-	log.Println("Retrieving initial aggregated rating via rating service")
+	log.Info("Retrieving initial aggregated rating via rating service")
 	getAggregatedRatingResp, err := ratingClient.GetAggregatedRating(ctx, &gen.GetAggregatedRatingRequest{
 		RecordType: recordTypeMovie,
 		RecordId:   m.Id,
 	})
 	if err != nil {
-		log.Fatalf("get aggregated rating: %v", err)
+		log.Fatal("get aggregated rating", zap.Error(err))
 	}
 
 	if got, want := getAggregatedRatingResp.RatingValue, float64(5); got != want {
-		log.Fatalf("rating mismatch: got %v, want %v", got, want)
+		log.Fatal("rating mismatch", zap.Float64("got", got), zap.Float64("want", want))
 	}
 
-	log.Println("Saving second rating via rating service")
+	log.Info("Saving second rating via rating service")
 	secondRating := int32(1)
 	if _, err = ratingClient.PutRating(ctx, &gen.PutRatingRequest{
 		UserId:      userID,
@@ -172,46 +177,46 @@ func main() {
 		RatingValue: secondRating,
 		Token:       token,
 	}); err != nil {
-		log.Fatalf("put rating: %v", err)
+		log.Fatal("put rating", zap.Error(err))
 	}
 
-	log.Println("Saving new aggregated rating via rating service")
+	log.Info("Saving new aggregated rating via rating service")
 
 	getAggregatedRatingResp, err = ratingClient.GetAggregatedRating(ctx, &gen.GetAggregatedRatingRequest{
 		RecordType: recordTypeMovie,
 		RecordId:   m.Id,
 	})
 	if err != nil {
-		log.Fatalf("get aggregated rating: %v", err)
+		log.Fatal("get aggregated rating", zap.Error(err))
 	}
 
 	wantRating := float64((firstRating + secondRating) / 2)
 	if got, want := getAggregatedRatingResp.RatingValue, wantRating; got != want {
-		log.Fatalf("rating mismatch: got %v, want %v", got, want)
+		log.Fatal("rating mismatch: got %v, want %v", zap.Float64("got", got), zap.Float64("want", want))
 	}
 
-	log.Println("Getting updated movie details via movie service")
+	log.Info("Getting updated movie details via movie service")
 
 	getMovieDetailsResp, err = movieClient.GetMovieDetails(ctx, &gen.GetMovieDetailsRequest{
 		MovieId: m.Id,
 	})
 	if err != nil {
-		log.Fatalf("get movie details: %v", err)
+		log.Fatal("get movie details", zap.Error(err))
 	}
 	wantMovieDetails.Rating = wantRating
 	if diff := cmp.Diff(getMovieDetailsResp.MovieDetails, wantMovieDetails, cmpopts.IgnoreUnexported(gen.MovieDetails{}, gen.Metadata{})); diff != "" {
-		log.Fatalf("get movie details after update mismatch: %v", diff)
+		log.Fatal("get movie details after update mismatch", zap.String("diff", diff))
 	}
 
-	log.Println("Integration test execution successful")
+	log.Info("Integration test execution successful")
 }
 
-func startMetadataService(ctx context.Context, registry discovery.Registry) *grpc.Server {
-	log.Println("Starting metadata service on " + metadataServiceAddress)
-	h := metadatatest.NewTestMetadataGRPCServer()
+func startMetadataService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+	log.Info("Starting metadata service on " + metadataServiceAddress)
+	h := metadatatest.NewTestMetadataGRPCServer(log)
 	l, err := net.Listen("tcp", metadataServiceAddress)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal("failed to listen", zap.Error(err))
 	}
 	srv := grpc.NewServer()
 	gen.RegisterMetadataServiceServer(srv, h)
@@ -222,7 +227,7 @@ func startMetadataService(ctx context.Context, registry discovery.Registry) *grp
 	go func() {
 		defer func() {
 			if err := registry.Deregister(ctx, id, metadataServiceName); err != nil {
-				log.Printf("Failed to deregister %s: %v", metadataServiceName, err)
+				log.Warn("Failed to deregister", zap.String("instanceServiceName", metadataServiceName), zap.Error(err))
 			}
 		}()
 		if err := srv.Serve(l); err != nil {
@@ -232,7 +237,7 @@ func startMetadataService(ctx context.Context, registry discovery.Registry) *grp
 	go func() {
 		for {
 			if err := registry.ReportHealthyState(id, metadataServiceName); err != nil {
-				log.Printf("Failed to report healthy state: %v", err.Error())
+				log.Warn("Failed to report healthy state", zap.Error(err))
 			}
 			time.Sleep(1 * time.Second)
 		}
@@ -240,12 +245,12 @@ func startMetadataService(ctx context.Context, registry discovery.Registry) *grp
 	return srv
 }
 
-func startRatingService(ctx context.Context, registry discovery.Registry) *grpc.Server {
-	log.Println("Starting rating service on " + ratingServiceAddress)
-	h := ratingtest.NewTestRatingGRPCServer(registry)
+func startRatingService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+	log.Info("Starting rating service on " + ratingServiceAddress)
+	h := ratingtest.NewTestRatingGRPCServer(registry, log)
 	l, err := net.Listen("tcp", ratingServiceAddress)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal("failed to listen", zap.Error(err))
 	}
 	srv := grpc.NewServer()
 	gen.RegisterRatingServiceServer(srv, h)
@@ -256,7 +261,7 @@ func startRatingService(ctx context.Context, registry discovery.Registry) *grpc.
 	go func() {
 		defer func() {
 			if err := registry.Deregister(ctx, id, ratingServiceName); err != nil {
-				log.Printf("Failed to deregister %s: %v", ratingServiceName, err)
+				log.Warn("Failed to deregister", zap.String("instanceServiceName", ratingServiceName), zap.Error(err))
 			}
 		}()
 		if err := srv.Serve(l); err != nil {
@@ -266,7 +271,7 @@ func startRatingService(ctx context.Context, registry discovery.Registry) *grpc.
 	go func() {
 		for {
 			if err := registry.ReportHealthyState(id, ratingServiceName); err != nil {
-				log.Printf("Failed to report healthy state: %v", err.Error())
+				log.Warn("Failed to report healthy state", zap.Error(err))
 			}
 			time.Sleep(1 * time.Second)
 		}
@@ -274,12 +279,12 @@ func startRatingService(ctx context.Context, registry discovery.Registry) *grpc.
 	return srv
 }
 
-func startMovieService(ctx context.Context, registry discovery.Registry) *grpc.Server {
-	log.Println("Starting movie service on " + movieServiceAddress)
-	h := movietest.NewTestMovieGRPCServer(registry)
+func startMovieService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+	log.Info("Starting movie service on " + movieServiceAddress)
+	h := movietest.NewTestMovieGRPCServer(registry, log)
 	l, err := net.Listen("tcp", movieServiceAddress)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal("failed to listen", zap.Error(err))
 	}
 	srv := grpc.NewServer()
 	gen.RegisterMovieServiceServer(srv, h)
@@ -290,7 +295,7 @@ func startMovieService(ctx context.Context, registry discovery.Registry) *grpc.S
 	go func() {
 		defer func() {
 			if err := registry.Deregister(ctx, id, movieServiceName); err != nil {
-				log.Printf("Failed to deregister %s: %v", movieServiceName, err)
+				log.Warn("Failed to deregister", zap.String("instanceServiceName", movieServiceName), zap.Error(err))
 			}
 		}()
 		if err := srv.Serve(l); err != nil {
@@ -300,7 +305,7 @@ func startMovieService(ctx context.Context, registry discovery.Registry) *grpc.S
 	go func() {
 		for {
 			if err := registry.ReportHealthyState(id, movieServiceName); err != nil {
-				log.Printf("Failed to report healthy state: %v", err.Error())
+				log.Warn("Failed to report healthy state", zap.Error(err))
 			}
 			time.Sleep(1 * time.Second)
 		}
@@ -308,12 +313,12 @@ func startMovieService(ctx context.Context, registry discovery.Registry) *grpc.S
 	return srv
 }
 
-func startAuthService(ctx context.Context, registry discovery.Registry) *grpc.Server {
-	log.Println("Starting auth service on " + authServiceAddress)
+func startAuthService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+	log.Info("Starting auth service on " + authServiceAddress)
 	h := authtest.NewTestAuthGRPCServer()
 	l, err := net.Listen("tcp", authServiceAddress)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal("failed to listen", zap.Error(err))
 	}
 	srv := grpc.NewServer()
 	gen.RegisterAuthServiceServer(srv, h)
@@ -324,7 +329,7 @@ func startAuthService(ctx context.Context, registry discovery.Registry) *grpc.Se
 	go func() {
 		defer func() {
 			if err := registry.Deregister(ctx, id, authServiceName); err != nil {
-				log.Printf("Failed to deregister %s: %v", authServiceName, err)
+				log.Warn("Failed to deregister", zap.String("instanceServiceName", authServiceName), zap.Error(err))
 			}
 		}()
 		if err := srv.Serve(l); err != nil {
@@ -334,7 +339,7 @@ func startAuthService(ctx context.Context, registry discovery.Registry) *grpc.Se
 	go func() {
 		for {
 			if err := registry.ReportHealthyState(id, authServiceName); err != nil {
-				log.Printf("Failed to report healthy state: %v", err.Error())
+				log.Warn("Failed to report healthy state", zap.Error(err))
 			}
 			time.Sleep(1 * time.Second)
 		}

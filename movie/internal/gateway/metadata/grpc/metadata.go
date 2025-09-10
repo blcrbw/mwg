@@ -6,8 +6,10 @@ import (
 	"mmoviecom/internal/grpcutil"
 	"mmoviecom/metadata/pkg/model"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/logging"
 	"time"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
@@ -17,11 +19,16 @@ import (
 type Gateway struct {
 	registry discovery.Registry
 	creds    credentials.TransportCredentials
+	logger   *zap.Logger
 }
 
 // New creates a new gRPC gateway for a movie metadata service.
-func New(registry discovery.Registry, creds credentials.TransportCredentials) *Gateway {
-	return &Gateway{registry: registry, creds: creds}
+func New(registry discovery.Registry, creds credentials.TransportCredentials, logger *zap.Logger) *Gateway {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "metadata-gateway"),
+		zap.String(logging.FieldType, "grpc"),
+	)
+	return &Gateway{registry: registry, creds: creds, logger: logger}
 }
 
 // Get returns movie metadata by a movie id.

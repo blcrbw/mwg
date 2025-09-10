@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"mmoviecom/gen"
+	"mmoviecom/pkg/logging"
 	"mmoviecom/rating/internal/controller/rating"
 	"mmoviecom/rating/pkg/model"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -14,12 +16,17 @@ import (
 // Handler define a gRPC rating API handler.
 type Handler struct {
 	gen.UnimplementedRatingServiceServer
-	svc *rating.Controller
+	svc    *rating.Controller
+	logger *zap.Logger
 }
 
 // New creates a new rating gRPC handler.
-func New(svc *rating.Controller) *Handler {
-	return &Handler{svc: svc}
+func New(svc *rating.Controller, logger *zap.Logger) *Handler {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "handler"),
+		zap.String(logging.FieldType, "grpc"),
+	)
+	return &Handler{svc: svc, logger: logger}
 }
 
 // GetAggregatedRating returns the aggregated rating for a record.

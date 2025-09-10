@@ -10,3 +10,5 @@ database:
     db_name: mvdb
     host: localhost
     port: 3306
+jaeger:
+  url: http://localhost:14268/api/traces

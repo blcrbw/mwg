@@ -9,6 +9,7 @@ import (
 	"mmoviecom/pkg/discovery"
 	"os"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -20,7 +21,11 @@ func ServiceConnection(ctx context.Context, serviceName string, registry discove
 	if err != nil {
 		return nil, err
 	}
-	return grpc.NewClient(addrs[rand.Intn(len(addrs))], grpc.WithTransportCredentials(creds))
+	return grpc.NewClient(
+		addrs[rand.Intn(len(addrs))],
+		grpc.WithTransportCredentials(creds),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+	)
 }
 
 // GetX509Credentials reads cert and key files and prepares TLS credentials.

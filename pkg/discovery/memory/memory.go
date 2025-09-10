@@ -3,16 +3,19 @@ package memory
 import (
 	"context"
 	"errors"
-	"log"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/logging"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // Registry defines an in-memory service registry.
 type Registry struct {
 	sync.RWMutex
 	ServiceAddrs map[string]map[string]*serviceInstance
+	logger       *zap.Logger
 }
 
 // serviceInstance defines a service instance record in the registry.
@@ -22,9 +25,14 @@ type serviceInstance struct {
 }
 
 // NewRegistry creates a new in-memory service registry instance.
-func NewRegistry() *Registry {
+func NewRegistry(logger *zap.Logger) *Registry {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "discovery"),
+		zap.String(logging.FieldType, "memory"),
+	)
 	return &Registry{
 		ServiceAddrs: make(map[string]map[string]*serviceInstance),
+		logger:       logger,
 	}
 }
 
@@ -73,7 +81,10 @@ func (r *Registry) ServiceAddresses(_ context.Context, serviceName string) ([]st
 	var res []string
 	for instanceId, i := range r.ServiceAddrs[serviceName] {
 		if i.lastActive.Before(time.Now().Add(-5 * time.Second)) {
-			log.Println("Instance " + instanceId + " of service " + serviceName + " is not active, skipping")
+			r.logger.Warn("Service instance is not active, skipping",
+				zap.String("instanceId", instanceId),
+				zap.String("instanceServiceName", serviceName),
+			)
 			continue
 		}
 		res = append(res, i.hostPort)

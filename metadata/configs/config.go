@@ -4,6 +4,7 @@ type ServiceConfig struct {
 	API              apiConfig              `yaml:"api"`
 	ServiceDiscovery serviceDiscoveryConfig `yaml:"serviceDiscovery"`
 	DatabaseConfig   DatabaseConfig         `yaml:"database"`
+	Jaeger           JaegerConfig           `yaml:"jaeger"`
 }
 
 type apiConfig struct {
@@ -27,4 +28,8 @@ type MysqlConfig struct {
 	User string `yaml:"user"`
 	Pass string `yaml:"password"`
 	Name string `yaml:"db_name"`
+}
+
+type JaegerConfig struct {
+	URL string `yaml:"url"`
 }

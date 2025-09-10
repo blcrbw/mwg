@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"mmoviecom/auth/configs"
 	grpchandler "mmoviecom/auth/internal/handler/grpc"
 	"mmoviecom/gen"
 	"mmoviecom/internal/grpcutil"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
+	"mmoviecom/pkg/logging"
+	"mmoviecom/pkg/tracing"
 
 	"net"
 	"os"
@@ -18,6 +19,10 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"gopkg.in/yaml.v3"
@@ -26,23 +31,45 @@ import (
 const serviceName = "auth"
 
 func main() {
+	log, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	log = log.With(zap.String(logging.FieldService, serviceName))
 	f, err := os.Open("defaults.yaml")
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Warn("failed to close file", zap.Error(err))
+		}
+	}()
 	var cfg configs.ServiceConfig
 	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
 		panic(err)
 	}
 
-	log.Printf("Starting the auth service on port %d", cfg.API.Port)
-	registry, err := consul.NewRegistry(cfg.ServiceDiscovery.Consul.Address)
+	log.Info("Starting the service", zap.Int(logging.FieldPort, cfg.API.Port))
+	ctx, cancel := context.WithCancel(context.Background())
+
+	tp, err := tracing.NewJaegerProvider(cfg.Jaeger.URL, serviceName)
+	if err != nil {
+		log.Fatal("Failed to initialize jaeger provider", zap.Error(err))
+	}
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			log.Fatal("Failed to shutdown jaeger provider", zap.Error(err))
+		}
+	}()
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
+	registry, err := consul.NewRegistry(cfg.ServiceDiscovery.Consul.Address, log)
 	if err != nil {
 		panic(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	instanceID := discovery.GenerateInstanceID(serviceName)
 	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("auth:%d", cfg.API.Port)); err != nil {
 		panic(err)
@@ -55,23 +82,31 @@ func main() {
 
 			case <-time.After(1 * time.Second):
 				if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
-					log.Println("Failed to report healthy state: " + err.Error())
+					log.Warn("Failed to report healthy state", zap.Error(err))
 				}
 			}
 		}
 	}()
-	defer registry.Deregister(ctx, instanceID, serviceName)
+	defer func() {
+		err := registry.Deregister(ctx, instanceID, serviceName)
+		if err != nil {
+			log.Warn("Failed to deregister service", zap.Error(err))
+		}
+	}()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal("failed to listen", zap.Error(err))
 	}
 	h := grpchandler.New(func() []byte {
 		return []byte("test-secret")
 	})
 
 	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
-	srv := grpc.NewServer(grpc.Creds(creds))
+	srv := grpc.NewServer(
+		grpc.Creds(creds),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
 	reflection.Register(srv)
 	gen.RegisterAuthServiceServer(srv, h)
 
@@ -83,9 +118,9 @@ func main() {
 		defer wg.Done()
 		s := <-sigChan
 		cancel()
-		log.Printf("Got signal: %v, attempting graceful shutdown", s)
+		log.Info("Got signal, attempting graceful shutdown", zap.Stringer(logging.FieldSignal, s))
 		srv.GracefulStop()
-		log.Printf("Gracefully stopped the gRPC server")
+		log.Info("Gracefully stopped the gRPC server")
 	}()
 	if err := srv.Serve(lis); err != nil {
 		panic(err)

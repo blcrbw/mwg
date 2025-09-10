@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"mmoviecom/gen"
 	"mmoviecom/internal/grpcutil"
 	"mmoviecom/metadata/configs"
@@ -13,6 +12,8 @@ import (
 	"mmoviecom/metadata/internal/repository/mysql"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
+	"mmoviecom/pkg/logging"
+	"mmoviecom/pkg/tracing"
 	"net"
 	"os"
 	"os/signal"
@@ -20,6 +21,10 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"gopkg.in/yaml.v3"
@@ -28,22 +33,46 @@ import (
 const serviceName = "metadata"
 
 func main() {
-	log.Printf("Starting the movie metadata service")
-
-	f, err := os.Open("/home/blc/prj/mwg/metadata/configs/defaults.yaml")
+	log, err := zap.NewProduction()
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
+	log = log.With(zap.String(logging.FieldService, serviceName))
+
+	f, err := os.Open("defaults.yaml")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Warn("failed to close file", zap.Error(err))
+		}
+	}()
 	var cfg configs.ServiceConfig
 	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
 		panic(err)
 	}
-	registry, err := consul.NewRegistry(cfg.ServiceDiscovery.Consul.Address)
+
+	log.Info("Starting the service", zap.Int(logging.FieldPort, cfg.API.Port))
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	tp, err := tracing.NewJaegerProvider(cfg.Jaeger.URL, serviceName)
+	if err != nil {
+		log.Fatal("Failed to initialize jaeger provider", zap.Error(err))
+	}
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			log.Fatal("Failed to shutdown jaeger provider", zap.Error(err))
+		}
+	}()
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
+	registry, err := consul.NewRegistry(cfg.ServiceDiscovery.Consul.Address, log)
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 	instanceID := discovery.GenerateInstanceID(serviceName)
 	if err := registry.Register(ctx, instanceID, serviceName, fmt.Sprintf("metadata:%d", cfg.API.Port)); err != nil {
 		panic(err)
@@ -55,27 +84,34 @@ func main() {
 				return
 			case <-time.After(1 * time.Second):
 				if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
-					log.Println("Failed to report healthy state: " + err.Error())
+					log.Warn("Failed to report healthy state", zap.Error(err))
 				}
 			}
 		}
 	}()
-	defer registry.Deregister(ctx, instanceID, serviceName)
+	defer func() {
+		if err := registry.Deregister(ctx, instanceID, serviceName); err != nil {
+			log.Warn("Failed to deregister instance", zap.Error(err))
+		}
+	}()
 
-	repo, err := mysql.New(cfg.DatabaseConfig.Mysql)
+	repo, err := mysql.New(cfg.DatabaseConfig.Mysql, log)
 	if err != nil {
 		panic(err)
 	}
-	cache := memory.New()
-	svc := metadata.New(repo, cache)
-	h := grpchandler.New(svc)
+	cache := memory.New(log)
+	svc := metadata.New(repo, cache, log)
+	h := grpchandler.New(svc, log)
 
 	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatal("failed to listen", zap.Error(err))
 	}
-	srv := grpc.NewServer(grpc.Creds(creds))
+	srv := grpc.NewServer(
+		grpc.Creds(creds),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
 	gen.RegisterMetadataServiceServer(srv, h)
 	reflection.Register(srv)
 
@@ -87,9 +123,9 @@ func main() {
 		defer wg.Done()
 		s := <-sigChan
 		cancel()
-		log.Printf("Got signal: %v, attempting graceful shutdown", s)
+		log.Info("Got signal, attempting graceful shutdown", zap.Stringer(logging.FieldSignal, s))
 		srv.GracefulStop()
-		log.Printf("Gracefully stopped the gRPC server")
+		log.Info("Gracefully stopped the gRPC server")
 	}()
 	if err := srv.Serve(lis); err != nil {
 		panic(err)

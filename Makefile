@@ -28,28 +28,28 @@ build-rating:
 	GOOS=linux go build -o rating/cmd/main rating/cmd/main.go
 	docker build -t rating:latest ./rating/
 	docker tag rating:latest localhost:5001/rating:latest
-	docker push localhost:5001/rating:latest
+	#docker push localhost:5001/rating:latest
 	#k3d image import rating:latest -c mwg
 
 build-metadata:
 	GOOS=linux go build -o metadata/cmd/main metadata/cmd/main.go
 	docker build -t metadata:latest ./metadata/
 	docker tag metadata:latest  localhost:5001/metadata:latest
-	docker push localhost:5001/metadata:latest --disable-content-trust
+	#docker push localhost:5001/metadata:latest --disable-content-trust
 	#k3d image import metadata:latest -c mwg
 
 build-movie:
 	GOOS=linux go build -o movie/cmd/main movie/cmd/main.go
 	docker build -t movie:latest ./movie/
 	docker tag movie:latest localhost:5001/movie:latest
-	docker push localhost:5001/movie:latest
+	#docker push localhost:5001/movie:latest
 	#k3d image import movie:latest -c mwg
 
 build-auth:
 	GOOS=linux go build -o auth/cmd/main auth/cmd/main.go
 	docker build -t auth:latest ./auth/
 	docker tag auth:latest localhost:5001/auth:latest
-	docker push localhost:5001/auth:latest
+	#docker push localhost:5001/auth:latest
 	#k3d image import auth:latest -c mwg
 
 kube-deployment:

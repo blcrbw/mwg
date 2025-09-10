@@ -3,8 +3,11 @@ package kafka
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"mmoviecom/pkg/logging"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"go.uber.org/zap"
+
 	"mmoviecom/rating/pkg/model"
 )
 
@@ -12,10 +15,15 @@ import (
 type Ingester struct {
 	consumer *kafka.Consumer
 	topic    string
+	logger   *zap.Logger
 }
 
 // NewIngester creates a new Kafka ingester.
-func NewIngester(addr string, groupID string, topic string) (*Ingester, error) {
+func NewIngester(addr string, groupID string, topic string, logger *zap.Logger) (*Ingester, error) {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "kafka-ingester"),
+		zap.String("topic", topic),
+	)
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": addr,
 		"group.id":          groupID,
@@ -24,13 +32,13 @@ func NewIngester(addr string, groupID string, topic string) (*Ingester, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Ingester{consumer: consumer, topic: topic}, nil
+	return &Ingester{consumer: consumer, topic: topic, logger: logger}, nil
 }
 
 // Ingest starts ingestion from Kafka and returns a channel containing
 // rating events representing the data consumed from the topic.
 func (i *Ingester) Ingest(ctx context.Context) (chan model.RatingEvent, error) {
-	fmt.Println("Starting Kafka ingester")
+	i.logger.Info("Starting Kafka ingester")
 	if err := i.consumer.SubscribeTopics([]string{i.topic}, nil); err != nil {
 		return nil, err
 	}
@@ -45,13 +53,13 @@ func (i *Ingester) Ingest(ctx context.Context) (chan model.RatingEvent, error) {
 			default:
 				msg, err := i.consumer.ReadMessage(-1)
 				if err != nil {
-					fmt.Println("Consumer error: " + err.Error())
+					i.logger.Warn("Consumer error", zap.Error(err))
 					continue
 				}
-				fmt.Println("Processing a message")
+				i.logger.Info("Processing a message")
 				var event model.RatingEvent
 				if err := json.Unmarshal(msg.Value, &event); err != nil {
-					fmt.Println("Unmarshal error: " + err.Error())
+					i.logger.Warn("Unmarshal error", zap.Error(err))
 					continue
 				}
 				ch <- event

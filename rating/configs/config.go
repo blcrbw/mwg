@@ -6,6 +6,7 @@ type ServiceConfig struct {
 	MessengerConfig  MessengerConfig        `yaml:"messenger"`
 	DatabaseConfig   DatabaseConfig         `yaml:"database"`
 	AuthConfig       AuthConfig             `yaml:"auth"`
+	Jaeger           JaegerConfig           `yaml:"jaeger"`
 }
 
 type apiConfig struct {
@@ -43,4 +44,8 @@ type MysqlConfig struct {
 type AuthConfig struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port" default:"8084"`
+}
+
+type JaegerConfig struct {
+	URL string `yaml:"url"`
 }

@@ -4,22 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"mmoviecom/movie/internal/gateway"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/logging"
 	"mmoviecom/rating/pkg/model"
 	"net/http"
+
+	"go.uber.org/zap"
 )
 
 // Gateway defines an HTTP gateway for a rating service.
 type Gateway struct {
 	registry discovery.Registry
+	logger   *zap.Logger
 }
 
 // New creates a new HTTP gateway for a rating service.
-func New(registry discovery.Registry) *Gateway {
-	return &Gateway{registry: registry}
+func New(registry discovery.Registry, logger *zap.Logger) *Gateway {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "rating-gateway"),
+		zap.String(logging.FieldType, "http"),
+	)
+
+	return &Gateway{registry: registry, logger: logger}
 }
 
 // GetAggregatedRating return the aggregated rating for a
@@ -30,7 +38,10 @@ func (g *Gateway) GetAggregatedRating(ctx context.Context, recordId model.Record
 		return 0, err
 	}
 	url := "http://" + addrs[rand.Intn(len(addrs))] + "/rating/"
-	log.Printf("Calling rating service. Request: GET %s", url)
+	g.logger.Debug("Calling rating service",
+		zap.String("url", url),
+		zap.String("method", "GET"),
+	)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -65,7 +76,10 @@ func (g *Gateway) PutRating(ctx context.Context, recordId model.RecordId, record
 		return err
 	}
 	url := "http://" + addrs[rand.Intn(len(addrs))] + "/rating/"
-	log.Printf("Calling rating service. Request: PUT %s", url)
+	g.logger.Debug("Calling rating service.",
+		zap.String("url", url),
+		zap.String("method", "PUT"),
+	)
 
 	req, err := http.NewRequest(http.MethodPut, url, nil)
 	if err != nil {

@@ -6,7 +6,9 @@ import (
 	"mmoviecom/gen"
 	"mmoviecom/metadata/pkg/model"
 	"mmoviecom/movie/internal/controller/movie"
+	"mmoviecom/pkg/logging"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -14,12 +16,17 @@ import (
 // Handler defines movie GRPC handler.
 type Handler struct {
 	gen.UnimplementedMovieServiceServer
-	ctrl *movie.Controller
+	ctrl   *movie.Controller
+	logger *zap.Logger
 }
 
 // New creates a new movie gRPC handler.
-func New(ctrl *movie.Controller) *Handler {
-	return &Handler{ctrl: ctrl}
+func New(ctrl *movie.Controller, logger *zap.Logger) *Handler {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "handler"),
+		zap.String(logging.FieldType, "grpc"),
+	)
+	return &Handler{ctrl: ctrl, logger: logger}
 }
 
 // GetMovieDetails returns movie details by id.

@@ -3,21 +3,28 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"mmoviecom/pkg/logging"
 	"mmoviecom/rating/internal/controller/rating"
 	"mmoviecom/rating/pkg/model"
 	"net/http"
 	"strconv"
+
+	"go.uber.org/zap"
 )
 
 // Handler defines a rating HTTP handler.
 type Handler struct {
-	ctrl *rating.Controller
+	ctrl   *rating.Controller
+	logger *zap.Logger
 }
 
 // New creates a new rating HTTP handler.
-func New(ctrl *rating.Controller) *Handler {
-	return &Handler{ctrl: ctrl}
+func New(ctrl *rating.Controller, logger *zap.Logger) *Handler {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "handler"),
+		zap.String(logging.FieldType, "http"),
+	)
+	return &Handler{ctrl: ctrl, logger: logger}
 }
 
 // Handle handles PUT and GET /rating requests.
@@ -48,7 +55,7 @@ func (h *Handler) Handle(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		if err := json.NewEncoder(w).Encode(v); err != nil {
-			log.Printf("Response encode error: %v\n", err)
+			h.logger.Warn("Response encode error", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -65,7 +72,7 @@ func (h *Handler) Handle(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if err := h.ctrl.PutRating(req.Context(), recordId, recordType, &record); err != nil {
-			log.Printf("Repository put error: %v\n", err)
+			h.logger.Warn("Repository put error", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	default:

@@ -3,9 +3,11 @@ package rating
 import (
 	"context"
 	"errors"
-	"fmt"
+	"mmoviecom/pkg/logging"
 	"mmoviecom/rating/internal/repository"
 	"mmoviecom/rating/pkg/model"
+
+	"go.uber.org/zap"
 )
 
 // ErrNotFound returned when no ratings are found for a record.
@@ -30,11 +32,15 @@ type Controller struct {
 	repo     ratingRepository
 	ingester ratingIngester
 	auth     AuthGateway
+	logger   *zap.Logger
 }
 
 // New creates a rating service controller.
-func New(repo ratingRepository, ingester ratingIngester, auth AuthGateway) *Controller {
-	return &Controller{repo: repo, ingester: ingester, auth: auth}
+func New(repo ratingRepository, ingester ratingIngester, auth AuthGateway, logger *zap.Logger) *Controller {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "controller"),
+	)
+	return &Controller{repo: repo, ingester: ingester, auth: auth, logger: logger}
 }
 
 // GetAggregatedRating returns the aggregated rating for a
@@ -82,7 +88,7 @@ func (c *Controller) StartIngestion(ctx context.Context) error {
 		return err
 	}
 	for e := range ch {
-		fmt.Printf("Consume a message: %v\n", e)
+		c.logger.Debug("Consume a message", zap.Stringer("message", &e))
 		if err := c.PutRating(ctx, model.RecordId(e.RecordId), model.RecordType(e.RecordType), &model.Rating{
 			UserId: e.UserId,
 			Value:  e.Value,

@@ -17,3 +17,5 @@ database:
 auth:
   host: localhost
   port: 8084
+jaeger:
+  url: http://localhost:14268/api/traces

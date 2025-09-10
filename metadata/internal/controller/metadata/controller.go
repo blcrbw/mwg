@@ -3,9 +3,11 @@ package metadata
 import (
 	"context"
 	"errors"
-	"fmt"
 	"mmoviecom/metadata/internal/repository"
 	"mmoviecom/metadata/pkg/model"
+	"mmoviecom/pkg/logging"
+
+	"go.uber.org/zap"
 )
 
 // ErrNotFound is returned when a requested record is not found.
@@ -18,20 +20,24 @@ type metadataRepository interface {
 
 // Controller defines a metadata service controller.
 type Controller struct {
-	repo  metadataRepository
-	cache metadataRepository
+	repo   metadataRepository
+	cache  metadataRepository
+	logger *zap.Logger
 }
 
 // New creates a metadata service controller.
-func New(repo metadataRepository, cache metadataRepository) *Controller {
-	return &Controller{repo: repo, cache: cache}
+func New(repo metadataRepository, cache metadataRepository, logger *zap.Logger) *Controller {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "controller"),
+	)
+	return &Controller{repo: repo, cache: cache, logger: logger}
 }
 
 // Get returns movie metadata by given id.
 func (c *Controller) Get(ctx context.Context, id string) (*model.Metadata, error) {
 	cacheRes, err := c.cache.Get(ctx, id)
 	if err == nil {
-		fmt.Println("Returning metadata from a cache for " + id)
+		c.logger.Info("Returning metadata from a cache", zap.String("id", id))
 		return cacheRes, nil
 	}
 
@@ -43,7 +49,7 @@ func (c *Controller) Get(ctx context.Context, id string) (*model.Metadata, error
 	}
 
 	if err := c.cache.Put(ctx, id, res); err != nil {
-		fmt.Println("Error updating cache: " + err.Error())
+		c.logger.Info("Error updating cache", zap.Error(err))
 	}
 
 	return res, err

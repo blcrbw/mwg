@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 // RecordId defines a record id. Together with RecordType
 // identifies unique record across all types.
 type RecordId string
@@ -27,11 +29,19 @@ type Rating struct {
 	Value      RatingValue `json:"value"`
 }
 
+func (r *Rating) String() string {
+	return fmt.Sprintf("Rating{recordId=%s, recordType=%s, UserId=%s, Value=%d}", r.RecordId, r.RecordType, r.UserId, r.Value)
+}
+
 // RatingEvent defines an event containing rating information.
 type RatingEvent struct {
 	Rating
 	ProviderId string          `json:"providerId"`
 	EventType  RatingEventType `json:"eventType"`
+}
+
+func (ev *RatingEvent) String() string {
+	return fmt.Sprintf("RatingEvent{Rating=%s, ProviderId=%s, EventType=%s}", ev.Rating.String(), ev.ProviderId, ev.EventType)
 }
 
 // RatingEventType defines the type of rating event.

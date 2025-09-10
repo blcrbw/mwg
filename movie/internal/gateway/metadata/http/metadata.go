@@ -4,22 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"mmoviecom/metadata/pkg/model"
 	"mmoviecom/movie/internal/gateway"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/logging"
 	"net/http"
+
+	"go.uber.org/zap"
 )
 
 // Gateway defines a movie metadata HTTP gateway.
 type Gateway struct {
 	registry discovery.Registry
+	logger   *zap.Logger
 }
 
 // New creates a new HTTP gateway for a movie metadata service.
-func New(registry discovery.Registry) *Gateway {
-	return &Gateway{registry: registry}
+func New(registry discovery.Registry, logger *zap.Logger) *Gateway {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "metadata-gateway"),
+		zap.String(logging.FieldType, "http"),
+	)
+	return &Gateway{registry: registry, logger: logger}
 }
 
 // Get gets movie metadata by a movie id.
@@ -29,7 +36,10 @@ func (g *Gateway) Get(ctx context.Context, id string) (*model.Metadata, error) {
 		return nil, err
 	}
 	url := "http://" + addrs[rand.Intn(len(addrs))] + "/metadata/"
-	log.Printf("Calling metadata service. Request: GET %s", url)
+	g.logger.Debug("Calling metadata service",
+		zap.String("url", url),
+		zap.String("method", "GET"),
+	)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
