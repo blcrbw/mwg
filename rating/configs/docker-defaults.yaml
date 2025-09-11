@@ -19,3 +19,5 @@ auth:
   port: 8084
 jaeger:
   url: http://jaeger:14268/api/traces
+prometheus:
+  metricsPort: 8091

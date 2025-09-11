@@ -6,7 +6,8 @@ type ServiceConfig struct {
 	MessengerConfig  MessengerConfig        `yaml:"messenger"`
 	DatabaseConfig   DatabaseConfig         `yaml:"database"`
 	AuthConfig       AuthConfig             `yaml:"auth"`
-	Jaeger           JaegerConfig           `yaml:"jaeger"`
+	Jaeger           jaegerConfig           `yaml:"jaeger"`
+	Prometheus       prometheusConfig       `yaml:"prometheus"`
 }
 
 type apiConfig struct {
@@ -46,6 +47,10 @@ type AuthConfig struct {
 	Port int    `yaml:"port" default:"8084"`
 }
 
-type JaegerConfig struct {
+type jaegerConfig struct {
 	URL string `yaml:"url"`
+}
+
+type prometheusConfig struct {
+	MetricsPort int `yaml:"metricsPort"`
 }

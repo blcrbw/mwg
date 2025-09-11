@@ -13,6 +13,7 @@ import (
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
 	"mmoviecom/pkg/logging"
+	"mmoviecom/pkg/metrics"
 	"mmoviecom/pkg/tracing"
 	"net"
 	"os"
@@ -114,6 +115,13 @@ func main() {
 	)
 	gen.RegisterMetadataServiceServer(srv, h)
 	reflection.Register(srv)
+
+	_, closer := metrics.NewMetricsReporter(log, serviceName, cfg.Prometheus.MetricsPort)
+	defer func() {
+		if err := closer.Close(); err != nil {
+			log.Warn("Failed to close Prometheus reporter scope", zap.Error(err))
+		}
+	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

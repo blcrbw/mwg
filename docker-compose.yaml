@@ -69,6 +69,28 @@ services:
     networks:
       - mwg
 
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./configs:/etc/prometheus
+    networks:
+      - mwg
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - ./configs:/etc/prometheus
+    depends_on:
+      - prometheus
+    networks:
+      - mwg
+
   movie:
     # image: movie:latest
     build: ./movie
@@ -84,6 +106,7 @@ services:
       - rating
       - metadata
       - jaeger
+      - prometheus
     networks:
       - mwg
 
@@ -103,6 +126,7 @@ services:
       - db
       - auth
       - jaeger
+      - prometheus
     networks:
       - mwg
 
@@ -120,6 +144,7 @@ services:
     depends_on:
       - db
       - jaeger
+      - prometheus
     networks:
       - mwg
 
@@ -137,5 +162,6 @@ services:
     depends_on:
       - db
       - jaeger
+      - prometheus
     networks:
       - mwg

@@ -4,7 +4,8 @@ type ServiceConfig struct {
 	API              apiConfig              `yaml:"api"`
 	ServiceDiscovery serviceDiscoveryConfig `yaml:"serviceDiscovery"`
 	DatabaseConfig   DatabaseConfig         `yaml:"database"`
-	Jaeger           JaegerConfig           `yaml:"jaeger"`
+	Jaeger           jaegerConfig           `yaml:"jaeger"`
+	Prometheus       prometheusConfig       `yaml:"prometheus"`
 }
 
 type apiConfig struct {
@@ -30,6 +31,10 @@ type MysqlConfig struct {
 	Name string `yaml:"db_name"`
 }
 
-type JaegerConfig struct {
+type jaegerConfig struct {
 	URL string `yaml:"url"`
+}
+
+type prometheusConfig struct {
+	MetricsPort int `yaml:"metricsPort"`
 }

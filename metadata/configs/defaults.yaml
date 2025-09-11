@@ -12,3 +12,5 @@ database:
     port: 3306
 jaeger:
   url: http://localhost:14268/api/traces
+prometheus:
+  metricsPort: 8091

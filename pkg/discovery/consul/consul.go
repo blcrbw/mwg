@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mmoviecom/pkg/discovery"
+	"mmoviecom/pkg/dns"
 	"mmoviecom/pkg/logging"
 	"strconv"
 	"strings"
@@ -45,12 +46,20 @@ func (r *Registry) Register(ctx context.Context, instanceId string, serviceName 
 	if len(parts) != 2 {
 		return errors.New("hostPort must be in a form of <host>:<port>, example: localhost:8500")
 	}
+	var address string
+	ipv4, err := dns.HostnameToIp(parts[0])
+	if err != nil {
+		address = parts[0]
+		r.logger.Debug("Error looking up host", zap.String("hostname", parts[0]), zap.Error(err))
+	} else {
+		address = ipv4.String()
+	}
 	port, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return err
 	}
 	return r.client.Agent().ServiceRegister(&consul.AgentServiceRegistration{
-		Address: parts[0],
+		Address: address,
 		ID:      instanceId,
 		Name:    serviceName,
 		Port:    port,

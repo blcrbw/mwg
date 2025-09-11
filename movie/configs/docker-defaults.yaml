@@ -5,3 +5,5 @@ serviceDiscovery:
     address: http://consul:8500
 jaeger:
   url: http://jaeger:14268/api/traces
+prometheus:
+  metricsPort: 8091

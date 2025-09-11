@@ -3,7 +3,8 @@ package configs
 type ServiceConfig struct {
 	API              apiConfig              `yaml:"api"`
 	ServiceDiscovery serviceDiscoveryConfig `yaml:"serviceDiscovery"`
-	Jaeger           JaegerConfig           `yaml:"jaeger"`
+	Jaeger           jaegerConfig           `yaml:"jaeger"`
+	Prometheus       prometheusConfig       `yaml:"prometheus"`
 }
 
 type apiConfig struct {
@@ -17,6 +18,10 @@ type consulConfig struct {
 	Address string `yaml:"address"`
 }
 
-type JaegerConfig struct {
+type jaegerConfig struct {
 	URL string `yaml:"url"`
+}
+
+type prometheusConfig struct {
+	MetricsPort int `yaml:"metricsPort"`
 }
