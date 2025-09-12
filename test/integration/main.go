@@ -8,12 +8,14 @@ import (
 	movietest "mmoviecom/movie/pkg/testutil"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/memory"
+	"mmoviecom/pkg/metrics"
 	ratingtest "mmoviecom/rating/pkg/testutil"
 	"net"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/uber-go/tally/v6"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,16 +43,18 @@ func main() {
 
 	ctx := context.Background()
 	registry := memory.NewRegistry(log)
+	scope, closer := metrics.NewMetricsReporter(log, "integration_test", 9099)
+	defer closer.Close()
 
 	log.Info("Setting up service handlers and clients")
 
-	authSrv := startAuthService(ctx, registry, log)
+	authSrv := startAuthService(ctx, registry, log, scope)
 	defer authSrv.GracefulStop()
-	metadataSrv := startMetadataService(ctx, registry, log)
+	metadataSrv := startMetadataService(ctx, registry, log, scope)
 	defer metadataSrv.GracefulStop()
-	ratingSrv := startRatingService(ctx, registry, log)
+	ratingSrv := startRatingService(ctx, registry, log, scope)
 	defer ratingSrv.GracefulStop()
-	movieSrv := startMovieService(ctx, registry, log)
+	movieSrv := startMovieService(ctx, registry, log, scope)
 	defer movieSrv.GracefulStop()
 
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -211,9 +215,9 @@ func main() {
 	log.Info("Integration test execution successful")
 }
 
-func startMetadataService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+func startMetadataService(ctx context.Context, registry discovery.Registry, log *zap.Logger, scope tally.Scope) *grpc.Server {
 	log.Info("Starting metadata service on " + metadataServiceAddress)
-	h := metadatatest.NewTestMetadataGRPCServer(log)
+	h := metadatatest.NewTestMetadataGRPCServer(log, scope)
 	l, err := net.Listen("tcp", metadataServiceAddress)
 	if err != nil {
 		log.Fatal("failed to listen", zap.Error(err))
@@ -245,9 +249,9 @@ func startMetadataService(ctx context.Context, registry discovery.Registry, log 
 	return srv
 }
 
-func startRatingService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+func startRatingService(ctx context.Context, registry discovery.Registry, log *zap.Logger, scope tally.Scope) *grpc.Server {
 	log.Info("Starting rating service on " + ratingServiceAddress)
-	h := ratingtest.NewTestRatingGRPCServer(registry, log)
+	h := ratingtest.NewTestRatingGRPCServer(registry, log, scope)
 	l, err := net.Listen("tcp", ratingServiceAddress)
 	if err != nil {
 		log.Fatal("failed to listen", zap.Error(err))
@@ -279,9 +283,9 @@ func startRatingService(ctx context.Context, registry discovery.Registry, log *z
 	return srv
 }
 
-func startMovieService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+func startMovieService(ctx context.Context, registry discovery.Registry, log *zap.Logger, scope tally.Scope) *grpc.Server {
 	log.Info("Starting movie service on " + movieServiceAddress)
-	h := movietest.NewTestMovieGRPCServer(registry, log)
+	h := movietest.NewTestMovieGRPCServer(registry, log, scope)
 	l, err := net.Listen("tcp", movieServiceAddress)
 	if err != nil {
 		log.Fatal("failed to listen", zap.Error(err))
@@ -313,9 +317,9 @@ func startMovieService(ctx context.Context, registry discovery.Registry, log *za
 	return srv
 }
 
-func startAuthService(ctx context.Context, registry discovery.Registry, log *zap.Logger) *grpc.Server {
+func startAuthService(ctx context.Context, registry discovery.Registry, log *zap.Logger, scope tally.Scope) *grpc.Server {
 	log.Info("Starting auth service on " + authServiceAddress)
-	h := authtest.NewTestAuthGRPCServer()
+	h := authtest.NewTestAuthGRPCServer(scope)
 	l, err := net.Listen("tcp", authServiceAddress)
 	if err != nil {
 		log.Fatal("failed to listen", zap.Error(err))

@@ -29,3 +29,33 @@ func NewMetricsReporter(logger *zap.Logger, serviceName string, metricsPort int)
 	counter.Inc(1)
 	return scope, closer
 }
+
+// EndpointMetrics defines an endpoint metrics.
+type EndpointMetrics struct {
+	Calls                 tally.Counter
+	InvalidArgumentErrors tally.Counter
+	NotFoundErrors        tally.Counter
+	InternalErrors        tally.Counter
+	Successes             tally.Counter
+}
+
+// NewEndpointMetrics creates a new endpoint metrics.
+func NewEndpointMetrics(scope tally.Scope, endpoint string) *EndpointMetrics {
+	scope = scope.Tagged(map[string]string{
+		"component": "handler",
+		"endpoint":  endpoint,
+	})
+	return &EndpointMetrics{
+		Calls: scope.Counter("calls"),
+		InvalidArgumentErrors: scope.Tagged(map[string]string{
+			"error": "invalid_argument",
+		}).Counter("error"),
+		NotFoundErrors: scope.Tagged(map[string]string{
+			"error": "not_found",
+		}).Counter("error"),
+		InternalErrors: scope.Tagged(map[string]string{
+			"error": "internal",
+		}).Counter("error"),
+		Successes: scope.Counter("success"),
+	}
+}

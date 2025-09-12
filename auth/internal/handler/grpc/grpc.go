@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"mmoviecom/gen"
+	"mmoviecom/pkg/metrics"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/uber-go/tally/v6"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -18,17 +20,25 @@ type SecretProvider func() []byte
 type Handler struct {
 	secretProvider SecretProvider
 	gen.UnimplementedAuthServiceServer
+	getTokenMetrics      *metrics.EndpointMetrics
+	validateTokenMetrics *metrics.EndpointMetrics
 }
 
 // New creates a new auth gRPC handler.
-func New(secretProvider SecretProvider) *Handler {
-	return &Handler{secretProvider: secretProvider}
+func New(secretProvider SecretProvider, scope tally.Scope) *Handler {
+	return &Handler{
+		secretProvider:       secretProvider,
+		getTokenMetrics:      metrics.NewEndpointMetrics(scope, "GetToken"),
+		validateTokenMetrics: metrics.NewEndpointMetrics(scope, "ValidateToken"),
+	}
 }
 
 // GetToken performs verification of user credentials and returns a JWT token in case of success.
 func (h *Handler) GetToken(ctx context.Context, req *gen.GetTokenRequest) (*gen.GetTokenResponse, error) {
+	h.getTokenMetrics.Calls.Inc(1)
 	username, password := req.GetUsername(), req.GetPassword()
 	if !validCredentials(username, password) {
+		h.getTokenMetrics.InvalidArgumentErrors.Inc(1)
 		return nil, status.Errorf(codes.Unauthenticated, "invalid credentials")
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -37,8 +47,10 @@ func (h *Handler) GetToken(ctx context.Context, req *gen.GetTokenRequest) (*gen.
 	})
 	tokenString, err := token.SignedString(h.secretProvider())
 	if err != nil {
+		h.getTokenMetrics.InternalErrors.Inc(1)
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	h.getTokenMetrics.Successes.Inc(1)
 	return &gen.GetTokenResponse{Token: tokenString}, nil
 }
 
@@ -52,17 +64,21 @@ func validCredentials(username, password string) bool {
 
 // ValidateToken performs JWT token validation.
 func (h *Handler) ValidateToken(ctx context.Context, req *gen.ValidateTokenRequest) (*gen.ValidateTokenResponse, error) {
+	h.validateTokenMetrics.Calls.Inc(1)
 	token, err := jwt.Parse(req.GetToken(), func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			h.validateTokenMetrics.InvalidArgumentErrors.Inc(1)
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return h.secretProvider(), nil
 	})
 	if err != nil {
+		h.validateTokenMetrics.InvalidArgumentErrors.Inc(1)
 		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
+		h.validateTokenMetrics.InvalidArgumentErrors.Inc(1)
 		return nil, status.Errorf(codes.Unauthenticated, "invalid token")
 	}
 	var username string
@@ -71,5 +87,6 @@ func (h *Handler) ValidateToken(ctx context.Context, req *gen.ValidateTokenReque
 			username = v
 		}
 	}
+	h.validateTokenMetrics.Successes.Inc(1)
 	return &gen.ValidateTokenResponse{Username: username}, nil
 }

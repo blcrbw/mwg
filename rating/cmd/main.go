@@ -117,7 +117,14 @@ func main() {
 			log.Fatal("Failed to start ingestion", zap.Error(err))
 		}
 	}()
-	h := grpchandler.New(svc, log)
+
+	scope, closer := metrics.NewMetricsReporter(log, serviceName, cfg.Prometheus.MetricsPort)
+	defer func() {
+		if err := closer.Close(); err != nil {
+			log.Warn("Failed to close Prometheus reporter scope", zap.Error(err))
+		}
+	}()
+	h := grpchandler.New(svc, log, scope)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {
@@ -130,15 +137,8 @@ func main() {
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 	gen.RegisterRatingServiceServer(srv, h)
-	log.Info("Register reflectrion")
+	log.Info("Register reflection")
 	reflection.Register(srv)
-
-	_, closer := metrics.NewMetricsReporter(log, serviceName, cfg.Prometheus.MetricsPort)
-	defer func() {
-		if err := closer.Close(); err != nil {
-			log.Warn("Failed to close Prometheus reporter scope", zap.Error(err))
-		}
-	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

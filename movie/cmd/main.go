@@ -103,7 +103,15 @@ func main() {
 	metadataGateway := metadatagateway.New(registry, creds, log)
 	ratingGateway := ratinggateway.New(registry, creds, log)
 	svc := movie.New(ratingGateway, metadataGateway, log)
-	h := moviegrpchandler.New(svc, log)
+
+	scope, closer := metrics.NewMetricsReporter(log, serviceName, cfg.Prometheus.MetricsPort)
+	defer func() {
+		if err := closer.Close(); err != nil {
+			log.Warn("Failed to close Prometheus reporter scope", zap.Error(err))
+		}
+	}()
+
+	h := moviegrpchandler.New(svc, log, scope)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {
@@ -119,13 +127,6 @@ func main() {
 	gen.RegisterMovieServiceServer(srv, h)
 	log.Info("Register reflection")
 	reflection.Register(srv)
-
-	_, closer := metrics.NewMetricsReporter(log, serviceName, cfg.Prometheus.MetricsPort)
-	defer func() {
-		if err := closer.Close(); err != nil {
-			log.Warn("Failed to close Prometheus reporter scope", zap.Error(err))
-		}
-	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

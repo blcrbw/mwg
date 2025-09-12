@@ -92,8 +92,8 @@ services:
       - mwg
 
   movie:
-    # image: movie:latest
-    build: ./movie
+    image: movie:latest
+    # build: ./movie
     container_name: movie
     restart: on-failure
     ports:
@@ -111,8 +111,8 @@ services:
       - mwg
 
   rating:
-    # image: rating:latest
-    build: ./rating
+    image: rating:latest
+    # build: ./rating
     container_name: rating
     restart: on-failure
     ports:
@@ -131,8 +131,8 @@ services:
       - mwg
 
   metadata:
-    # image: metadata:latest
-    build: ./metadata
+    image: metadata:latest
+    # build: ./metadata
     container_name: metadata
     restart: on-failure
     ports:
@@ -149,8 +149,8 @@ services:
       - mwg
 
   auth:
-    # image: auth:latest
-    build: ./auth
+    image: auth:latest
+    # build: ./auth
     container_name: auth
     restart: on-failure
     ports:
@@ -165,3 +165,23 @@ services:
       - prometheus
     networks:
       - mwg
+
+  graphviz:
+    image: minidocks/graphviz:latest
+    container_name: graphviz
+    networks:
+      - mwg
+    depends_on:
+      - movie
+
+  grafana:
+    image: grafana/grafana-oss
+    container_name: grafana
+    ports:
+      - 3000:3000
+    networks:
+      - mwg
+    depends_on:
+      - movie
+      - prometheus
+

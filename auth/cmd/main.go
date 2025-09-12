@@ -94,13 +94,20 @@ func main() {
 		}
 	}()
 
+	scope, closer := metrics.NewMetricsReporter(log, serviceName, cfg.Prometheus.MetricsPort)
+	defer func() {
+		if err := closer.Close(); err != nil {
+			log.Warn("Failed to close Prometheus reporter scope", zap.Error(err))
+		}
+	}()
+
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", cfg.API.Port))
 	if err != nil {
 		log.Fatal("failed to listen", zap.Error(err))
 	}
 	h := grpchandler.New(func() []byte {
 		return []byte("test-secret")
-	})
+	}, scope)
 
 	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
 	srv := grpc.NewServer(
@@ -109,13 +116,6 @@ func main() {
 	)
 	reflection.Register(srv)
 	gen.RegisterAuthServiceServer(srv, h)
-
-	_, closer := metrics.NewMetricsReporter(log, serviceName, cfg.Prometheus.MetricsPort)
-	defer func() {
-		if err := closer.Close(); err != nil {
-			log.Warn("Failed to close Prometheus reporter scope", zap.Error(err))
-		}
-	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

@@ -10,11 +10,12 @@ import (
 	"mmoviecom/rating/internal/ingester/kafka"
 	"mmoviecom/rating/internal/repository/memory"
 
+	"github.com/uber-go/tally/v6"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewTestRatingGRPCServer(registry discovery.Registry, logger *zap.Logger) gen.RatingServiceServer {
+func NewTestRatingGRPCServer(registry discovery.Registry, logger *zap.Logger, scope tally.Scope) gen.RatingServiceServer {
 	logger = logger.With(
 		zap.String(logging.FieldService, "rating"),
 	)
@@ -27,5 +28,5 @@ func NewTestRatingGRPCServer(registry discovery.Registry, logger *zap.Logger) ge
 
 	auth := authgateway.New(registry, insecure.NewCredentials(), logger)
 	ctrl := rating.New(r, ingester, auth, logger)
-	return grpc.New(ctrl, logger)
+	return grpc.New(ctrl, logger, scope)
 }
