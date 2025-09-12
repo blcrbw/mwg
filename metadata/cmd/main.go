@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
+	"crypto/rand"
+	"flag"
 	"fmt"
 	"mmoviecom/gen"
 	"mmoviecom/internal/grpcutil"
@@ -16,6 +19,7 @@ import (
 	"mmoviecom/pkg/metrics"
 	"mmoviecom/pkg/tracing"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -29,6 +33,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"gopkg.in/yaml.v3"
+
+	_ "net/http/pprof"
 )
 
 const serviceName = "metadata"
@@ -39,6 +45,22 @@ func main() {
 		panic(err)
 	}
 	log = log.With(zap.String(logging.FieldService, serviceName))
+
+	enablePprof := flag.Bool("pprof", false, "Enable pprof listener")
+	simulateCPULoad := flag.Bool("simulatecpuload",
+		false,
+		"Simulate CPU load for profiling")
+	flag.Parse()
+	if *simulateCPULoad {
+		go heavyOperation()
+	}
+	if *enablePprof {
+		go func() {
+			if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+				log.Fatal("Failed to start profiler handler", zap.Error(err))
+			}
+		}()
+	}
 
 	f, err := os.Open("defaults.yaml")
 	if err != nil {
@@ -139,4 +161,15 @@ func main() {
 		panic(err)
 	}
 	wg.Wait()
+}
+
+func heavyOperation() {
+	for {
+		token := make([]byte, 1024)
+		_, err := rand.Read(token)
+		if err != nil {
+			return
+		}
+		md5.New().Write(token)
+	}
 }
