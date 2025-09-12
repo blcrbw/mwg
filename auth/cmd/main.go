@@ -53,7 +53,7 @@ func main() {
 	log.Info("Starting the service", zap.Int(logging.FieldPort, cfg.API.Port))
 	ctx, cancel := context.WithCancel(context.Background())
 
-	tp, err := tracing.NewJaegerProvider(cfg.Jaeger.URL, serviceName)
+	tp, err := tracing.NewJaegerProvider(ctx, cfg.Jaeger.URL, serviceName)
 	if err != nil {
 		log.Fatal("Failed to initialize jaeger provider", zap.Error(err))
 	}

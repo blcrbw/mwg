@@ -62,7 +62,7 @@ tls-cert:
 	openssl req -x509 -nodes -newkey rsa:4096 \
 	-keyout cert.key -out cert.crt -days 365 -nodes \
 	-subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=localhost" \
-	-addext "subjectAltName=DNS:localhost,DNS:example.com,DNS:movie,DNS:rating,DNS:metadata,DNS:auth,IP:127.0.0.1,IP:192.168.1.1,IP:172.21.0.8,IP:172.21.0.6,IP:172.21.0.7,IP:172.21.0.9" -config /dev/null
+	-addext "subjectAltName=DNS:localhost,DNS:example.com,DNS:movie,DNS:rating,DNS:metadata,DNS:auth,IP:127.0.0.1,IP:192.168.1.143,IP:172.21.0.8,IP:172.21.0.6,IP:172.21.0.7,IP:172.21.0.10IP:172.21.0.9" -config /dev/null
 	cp cert.* metadata/configs/
 	cp cert.* rating/configs/
 	cp cert.* movie/configs/

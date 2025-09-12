@@ -11,6 +11,6 @@ database:
     host: db
     port: 3306
 jaeger:
-  url: http://jaeger:14268/api/traces
+  url: http://jaeger:4318/v1/traces
 prometheus:
   metricsPort: 8091
