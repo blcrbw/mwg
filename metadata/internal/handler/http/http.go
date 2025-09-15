@@ -25,7 +25,10 @@ func New(ctrl *metadata.Controller, logger *zap.Logger) *Handler {
 		zap.String(logging.FieldComponent, "handler"),
 		zap.String(logging.FieldType, "http"),
 	)
-	return &Handler{ctrl: ctrl}
+	return &Handler{
+		ctrl:   ctrl,
+		logger: logger,
+	}
 }
 
 // GetMetadata handles GET /metadata requests.
@@ -80,8 +83,6 @@ func (h *Handler) PutMetadata(w http.ResponseWriter, req *http.Request) {
 		h.logger.Warn("Repository put error", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-
-	return
 }
 
 // Handle handles PUT and GET /rating requests.

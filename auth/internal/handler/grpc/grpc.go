@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"mmoviecom/gen"
+	"mmoviecom/pkg/logging"
 	"mmoviecom/pkg/metrics"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/uber-go/tally/v6"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -22,14 +24,20 @@ type Handler struct {
 	gen.UnimplementedAuthServiceServer
 	getTokenMetrics      *metrics.EndpointMetrics
 	validateTokenMetrics *metrics.EndpointMetrics
+	logger               *zap.Logger
 }
 
 // New creates a new auth gRPC handler.
-func New(secretProvider SecretProvider, scope tally.Scope) *Handler {
+func New(secretProvider SecretProvider, scope tally.Scope, logger *zap.Logger) *Handler {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "handler"),
+		zap.String(logging.FieldType, "grpc"),
+	)
 	return &Handler{
 		secretProvider:       secretProvider,
 		getTokenMetrics:      metrics.NewEndpointMetrics(scope, "GetToken"),
 		validateTokenMetrics: metrics.NewEndpointMetrics(scope, "ValidateToken"),
+		logger:               logger,
 	}
 }
 
@@ -48,7 +56,8 @@ func (h *Handler) GetToken(ctx context.Context, req *gen.GetTokenRequest) (*gen.
 	tokenString, err := token.SignedString(h.secretProvider())
 	if err != nil {
 		h.getTokenMetrics.InternalErrors.Inc(1)
-		return nil, status.Errorf(codes.Internal, err.Error())
+		h.logger.Error("Failed to sign token", zap.Error(err))
+		return nil, status.Errorf(codes.Internal, "failed to sign token")
 	}
 	h.getTokenMetrics.Successes.Inc(1)
 	return &gen.GetTokenResponse{Token: tokenString}, nil

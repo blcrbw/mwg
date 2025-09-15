@@ -107,7 +107,7 @@ func main() {
 	}
 	h := grpchandler.New(func() []byte {
 		return []byte("test-secret")
-	}, scope)
+	}, scope, log)
 
 	creds := grpcutil.GetX509Credentials("cert.crt", "cert.key")
 	srv := grpc.NewServer(

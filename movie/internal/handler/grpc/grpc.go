@@ -46,10 +46,12 @@ func (h *Handler) GetMovieDetails(ctx context.Context, req *gen.GetMovieDetailsR
 	m, err := h.ctrl.Get(ctx, req.MovieId)
 	if err != nil && errors.Is(err, movie.ErrNotFound) {
 		h.getMovieDetailsMetrics.NotFoundErrors.Inc(1)
-		return nil, status.Errorf(codes.NotFound, err.Error())
+
+		return nil, status.Errorf(codes.NotFound, "not found")
 	} else if err != nil {
 		h.getMovieDetailsMetrics.InternalErrors.Inc(1)
-		return nil, status.Errorf(codes.Internal, err.Error())
+		h.logger.Error("Cannot get movie details", zap.Error(err))
+		return nil, status.Errorf(codes.Internal, "internal server error")
 	}
 	var rating float64
 	if m.Rating != nil {

@@ -56,7 +56,7 @@ func (p *Processor) Start(ctx context.Context) error {
 // process executes processing logic.
 func (p *Processor) process(ctx context.Context) error {
 	const timeout = 5 * time.Minute
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	_, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Dummy simulation.

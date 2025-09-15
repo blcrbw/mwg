@@ -319,7 +319,7 @@ func startMovieService(ctx context.Context, registry discovery.Registry, log *za
 
 func startAuthService(ctx context.Context, registry discovery.Registry, log *zap.Logger, scope tally.Scope) *grpc.Server {
 	log.Info("Starting auth service on " + authServiceAddress)
-	h := authtest.NewTestAuthGRPCServer(scope)
+	h := authtest.NewTestAuthGRPCServer(scope, log)
 	l, err := net.Listen("tcp", authServiceAddress)
 	if err != nil {
 		log.Fatal("failed to listen", zap.Error(err))
