@@ -110,6 +110,7 @@ services:
       - metadata
       - jaeger
       - prometheus
+      - consul
     networks:
       - mwg
 
@@ -130,6 +131,7 @@ services:
       - auth
       - jaeger
       - prometheus
+      - consul
     networks:
       - mwg
 
@@ -148,6 +150,7 @@ services:
       - db
       - jaeger
       - prometheus
+      - consul
     networks:
       - mwg
 
@@ -166,6 +169,7 @@ services:
       - db
       - jaeger
       - prometheus
+      - consul
     networks:
       - mwg
 

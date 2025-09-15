@@ -60,6 +60,7 @@ message PutRatingResponse {
 
 service MovieService {
   rpc GetMovieDetails(GetMovieDetailsRequest) returns (GetMovieDetailsResponse);
+  rpc UploadFile(stream UploadRequest) returns (UploadResponse);
 }
 
 message GetMovieDetailsRequest {
@@ -68,4 +69,13 @@ message GetMovieDetailsRequest {
 
 message GetMovieDetailsResponse {
   MovieDetails movie_details = 1;
+}
+
+message UploadRequest {
+  string filename = 1;
+  bytes chunk = 2;
+}
+
+message UploadResponse {
+  string message = 1;
 }

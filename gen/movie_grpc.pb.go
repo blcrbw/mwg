@@ -300,6 +300,7 @@ var RatingService_ServiceDesc = grpc.ServiceDesc{
 
 const (
 	MovieService_GetMovieDetails_FullMethodName = "/MovieService/GetMovieDetails"
+	MovieService_UploadFile_FullMethodName      = "/MovieService/UploadFile"
 )
 
 // MovieServiceClient is the client API for MovieService service.
@@ -307,6 +308,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MovieServiceClient interface {
 	GetMovieDetails(ctx context.Context, in *GetMovieDetailsRequest, opts ...grpc.CallOption) (*GetMovieDetailsResponse, error)
+	UploadFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error)
 }
 
 type movieServiceClient struct {
@@ -327,11 +329,25 @@ func (c *movieServiceClient) GetMovieDetails(ctx context.Context, in *GetMovieDe
 	return out, nil
 }
 
+func (c *movieServiceClient) UploadFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MovieService_ServiceDesc.Streams[0], MovieService_UploadFile_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[UploadRequest, UploadResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MovieService_UploadFileClient = grpc.ClientStreamingClient[UploadRequest, UploadResponse]
+
 // MovieServiceServer is the server API for MovieService service.
 // All implementations must embed UnimplementedMovieServiceServer
 // for forward compatibility.
 type MovieServiceServer interface {
 	GetMovieDetails(context.Context, *GetMovieDetailsRequest) (*GetMovieDetailsResponse, error)
+	UploadFile(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error
 	mustEmbedUnimplementedMovieServiceServer()
 }
 
@@ -344,6 +360,9 @@ type UnimplementedMovieServiceServer struct{}
 
 func (UnimplementedMovieServiceServer) GetMovieDetails(context.Context, *GetMovieDetailsRequest) (*GetMovieDetailsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMovieDetails not implemented")
+}
+func (UnimplementedMovieServiceServer) UploadFile(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method UploadFile not implemented")
 }
 func (UnimplementedMovieServiceServer) mustEmbedUnimplementedMovieServiceServer() {}
 func (UnimplementedMovieServiceServer) testEmbeddedByValue()                      {}
@@ -384,6 +403,13 @@ func _MovieService_GetMovieDetails_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MovieService_UploadFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(MovieServiceServer).UploadFile(&grpc.GenericServerStream[UploadRequest, UploadResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MovieService_UploadFileServer = grpc.ClientStreamingServer[UploadRequest, UploadResponse]
+
 // MovieService_ServiceDesc is the grpc.ServiceDesc for MovieService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -396,6 +422,12 @@ var MovieService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MovieService_GetMovieDetails_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "UploadFile",
+			Handler:       _MovieService_UploadFile_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "movie.proto",
 }

@@ -3,11 +3,14 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"mmoviecom/gen"
 	"mmoviecom/metadata/pkg/model"
 	"mmoviecom/movie/internal/controller/movie"
 	"mmoviecom/pkg/logging"
 	"mmoviecom/pkg/metrics"
+	"os"
 
 	"github.com/uber-go/tally/v6"
 	"go.uber.org/zap"
@@ -64,4 +67,36 @@ func (h *Handler) GetMovieDetails(ctx context.Context, req *gen.GetMovieDetailsR
 			Rating:   rating,
 		},
 	}, nil
+}
+
+// UploadFile handles streaming file upload.
+func (h *Handler) UploadFile(stream gen.MovieService_UploadFileServer) error {
+	var filename string
+	var file *os.File
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return stream.SendAndClose(&gen.UploadResponse{
+				Message: fmt.Sprintf("File %s uploaded successfully", filename),
+			})
+		}
+		if err != nil {
+			return err
+		}
+		if file == nil {
+			filename = req.GetFilename()
+			file, err = os.Create(filename)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := file.Close(); err != nil {
+					h.logger.Error("Cannot close file", zap.Error(err))
+				}
+			}()
+		}
+		if _, err := file.Write(req.Chunk); err != nil {
+			return err
+		}
+	}
 }
