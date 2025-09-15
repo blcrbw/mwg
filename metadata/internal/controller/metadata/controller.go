@@ -1,0 +1,62 @@
+package metadata
+
+import (
+	"context"
+	"errors"
+	"mmoviecom/metadata/internal/repository"
+	"mmoviecom/metadata/pkg/model"
+	"mmoviecom/pkg/logging"
+
+	"go.uber.org/zap"
+)
+
+// ErrNotFound is returned when a requested record is not found.
+var ErrNotFound = errors.New("not found")
+
+type metadataRepository interface {
+	Get(ctx context.Context, id string) (*model.Metadata, error)
+	Put(ctx context.Context, id string, metadata *model.Metadata) error
+}
+
+// Controller defines a metadata service controller.
+type Controller struct {
+	repo   metadataRepository
+	cache  metadataRepository
+	logger *zap.Logger
+}
+
+// New creates a metadata service controller.
+func New(repo metadataRepository, cache metadataRepository, logger *zap.Logger) *Controller {
+	logger = logger.With(
+		zap.String(logging.FieldComponent, "controller"),
+	)
+	return &Controller{repo: repo, cache: cache, logger: logger}
+}
+
+// Get returns movie metadata by given id.
+func (c *Controller) Get(ctx context.Context, id string) (*model.Metadata, error) {
+	cacheRes, err := c.cache.Get(ctx, id)
+	if err == nil {
+		c.logger.Info("Returning metadata from a cache", zap.String("id", id))
+		return cacheRes, nil
+	}
+
+	res, err := c.repo.Get(ctx, id)
+	if err != nil && errors.Is(err, repository.ErrNotFound) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	if err := c.cache.Put(ctx, id, res); err != nil {
+		c.logger.Info("Error updating cache", zap.Error(err))
+	}
+
+	return res, err
+}
+
+// Put stores metadata in the repository.
+func (c *Controller) Put(ctx context.Context, id string, metadata *model.Metadata) error {
+	err := c.repo.Put(ctx, id, metadata)
+	return err
+}

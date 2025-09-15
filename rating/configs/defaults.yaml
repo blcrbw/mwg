@@ -1,0 +1,23 @@
+api:
+  port: 8082
+serviceDiscovery:
+  consul:
+    address: http://consul-server.consul.svc.cluster.local:8500
+messenger:
+  kafka:
+    Address: localhost
+    Port: 9092
+database:
+  mysql:
+    user: root
+    password: password
+    db_name: db
+    host: localhost
+    port: 3306
+auth:
+  host: localhost
+  port: 8084
+jaeger:
+  url: http://localhost:4318/v1/traces
+prometheus:
+  metricsPort: 8091

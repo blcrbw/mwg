@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: movie
+  template:
+    metadata:
+      labels:
+        app: movie
+    spec:
+      containers:
+        - name: movie
+          image: mwg-registry:5000/movie:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081

@@ -8,6 +8,8 @@
 *.so
 *.dylib
 
+*/cmd/main
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -27,6 +29,10 @@ go.work.sum
 # env file
 .env
 
+# generated tls certificates
+cert.*
+./*/cert.*
+
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/

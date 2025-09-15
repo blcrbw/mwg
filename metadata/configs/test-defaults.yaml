@@ -1,0 +1,16 @@
+api:
+  port: 8089
+serviceDiscovery:
+  consul:
+    address: http://localhost:8500
+database:
+  mysql:
+    user: root
+    password: password
+    db_name: mvdb
+    host: localhost
+    port: 3306
+jaeger:
+  url: http://localhost:4318/v1/traces
+prometheus:
+  metricsPort: 8091

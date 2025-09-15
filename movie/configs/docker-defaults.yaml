@@ -1,0 +1,9 @@
+api:
+  port: 8083
+serviceDiscovery:
+  consul:
+    address: http://consul:8500
+jaeger:
+  url: http://jaeger:4318/v1/traces
+prometheus:
+  metricsPort: 8091

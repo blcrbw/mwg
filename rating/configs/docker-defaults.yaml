@@ -1,0 +1,23 @@
+api:
+  port: 8082
+serviceDiscovery:
+  consul:
+    address: http://consul:8500
+messenger:
+  kafka:
+    Address: kafka
+    Port: 9092
+database:
+  mysql:
+    user: root
+    password: password
+    db_name: mvdb
+    host: db
+    port: 3306
+auth:
+  host: auth
+  port: 8084
+jaeger:
+  url: http://jaeger:4318/v1/traces
+prometheus:
+  metricsPort: 8091
