@@ -23,10 +23,10 @@ type RatingValue int
 
 // Rating defines an individual rating created by a user for some record.
 type Rating struct {
-	RecordId   string      `json:"recordId,"`
-	RecordType string      `json:"recordType"`
-	UserId     UserId      `json:"userId"`
-	Value      RatingValue `json:"value"`
+	RecordId   string      `json:"recordId" validate:"required"`
+	RecordType string      `json:"recordType" validate:"required"`
+	UserId     UserId      `json:"userId" validate:"required"`
+	Value      RatingValue `json:"value" validate:"gte=1,lte=5"`
 }
 
 func (r *Rating) String() string {
@@ -36,8 +36,8 @@ func (r *Rating) String() string {
 // RatingEvent defines an event containing rating information.
 type RatingEvent struct {
 	Rating
-	ProviderId string          `json:"providerId"`
-	EventType  RatingEventType `json:"eventType"`
+	ProviderId string          `json:"providerId" validate:"required"`
+	EventType  RatingEventType `json:"eventType" validate:"required"`
 }
 
 func (ev *RatingEvent) String() string {

@@ -3,17 +3,21 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mmoviecom/gen"
 	"mmoviecom/pkg/logging"
 	"mmoviecom/pkg/metrics"
 	"mmoviecom/rating/internal/controller/rating"
 	"mmoviecom/rating/pkg/model"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/uber-go/tally/v6"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+var validate = validator.New()
 
 // Handler define a gRPC rating API handler.
 type Handler struct {
@@ -60,11 +64,15 @@ func (h *Handler) GetAggregatedRating(ctx context.Context, req *gen.GetAggregate
 // PutRating writes a rating for a given record.
 func (h *Handler) PutRating(ctx context.Context, req *gen.PutRatingRequest) (*gen.PutRatingResponse, error) {
 	h.putRatingMetrics.Calls.Inc(1)
-	if req == nil || req.RecordId == "" || req.RecordType == "" || req.UserId == "" || req.Token == "" {
+	if req == nil {
 		h.putRatingMetrics.InvalidArgumentErrors.Inc(1)
-		return nil, status.Error(codes.InvalidArgument, "nil req or empty user id or record id/type or token")
+		return nil, status.Error(codes.InvalidArgument, "nil req")
 	}
 	record := model.Rating{UserId: model.UserId(req.UserId), Value: model.RatingValue(req.RatingValue)}
+	if err := validate.Struct(record); err != nil {
+		h.logger.Error("Rating validation failed", zap.Error(err))
+		return nil, fmt.Errorf("rating validation failed")
+	}
 	if err := h.svc.ValidateToken(ctx, req.GetToken(), &record); err != nil {
 		h.putRatingMetrics.InvalidArgumentErrors.Inc(1)
 		return nil, status.Error(codes.InvalidArgument, err.Error())

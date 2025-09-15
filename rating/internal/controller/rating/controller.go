@@ -3,16 +3,20 @@ package rating
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mmoviecom/pkg/logging"
 	"mmoviecom/rating/internal/repository"
 	"mmoviecom/rating/pkg/model"
 
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 )
 
 // ErrNotFound returned when no ratings are found for a record.
 var ErrNotFound = errors.New("rating not found for a record")
 var ErrTokenIsEmpty = errors.New("token is empty")
+
+var validate = validator.New()
 
 type ratingRepository interface {
 	Get(ctx context.Context, recordId model.RecordId, recordType model.RecordType) ([]model.Rating, error)
@@ -63,6 +67,9 @@ func (c *Controller) GetAggregatedRating(ctx context.Context, recordId model.Rec
 
 // PutRating writes a rating for a given record.
 func (c *Controller) PutRating(ctx context.Context, recordId model.RecordId, recordType model.RecordType, record *model.Rating) error {
+	if err := validate.Struct(record); err != nil {
+		return fmt.Errorf("rating validation failed: %w", err)
+	}
 	return c.repo.Put(ctx, recordId, recordType, record)
 }
 

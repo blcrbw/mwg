@@ -3,12 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"mmoviecom/rating/pkg/model"
 	"os"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/go-playground/validator/v10"
 )
+
+var validate = validator.New()
 
 func main() {
 	fmt.Println("Creating a Kafka producer")
@@ -53,6 +57,10 @@ func readRatingEvents(fileName string) ([]model.RatingEvent, error) {
 
 func produceRatingEvents(topic string, producer *kafka.Producer, events []model.RatingEvent) error {
 	for _, event := range events {
+		if err := validate.Struct(event); err != nil {
+			log.Printf("rating event validation failed: %s", err.Error())
+			continue
+		}
 		encodedEvent, err := json.Marshal(event)
 		if err != nil {
 			return err
