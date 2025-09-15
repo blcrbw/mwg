@@ -10,6 +10,8 @@ services:
     container_name: zookeeper
     ports:
       - "2181:2181"
+    networks:
+      - mwg
   kafka:
     image: wurstmeister/kafka
     container_name: kafka
@@ -17,7 +19,8 @@ services:
       - "9092:9092"
     environment:
       KAFKA_ADVERTISED_HOST_NAME: kafka
-#      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
     depends_on:
       - zookeeper
     networks:
@@ -165,14 +168,6 @@ services:
       - prometheus
     networks:
       - mwg
-
-  graphviz:
-    image: minidocks/graphviz:latest
-    container_name: graphviz
-    networks:
-      - mwg
-    depends_on:
-      - movie
 
   grafana:
     image: grafana/grafana-oss

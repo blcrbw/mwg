@@ -10,6 +10,8 @@ import (
 	metadatagateway "mmoviecom/movie/internal/gateway/metadata/grpc"
 	ratinggateway "mmoviecom/movie/internal/gateway/rating/grpc"
 	moviegrpchandler "mmoviecom/movie/internal/handler/grpc"
+	consullock "mmoviecom/movie/internal/lock/consul"
+	"mmoviecom/movie/internal/processor"
 	"mmoviecom/pkg/discovery"
 	"mmoviecom/pkg/discovery/consul"
 	"mmoviecom/pkg/limiter"
@@ -96,6 +98,22 @@ func main() {
 	defer func() {
 		if err := registry.Deregister(ctx, instanceID, serviceName); err != nil {
 			log.Warn("Failed to deregister service", zap.Error(err))
+		}
+	}()
+
+	lockProvider, err := consullock.NewLockProvider(log, cfg.ServiceDiscovery.Consul.Address)
+	if err != nil {
+		log.Fatal("Failed to create lock provider", zap.Error(err))
+	}
+	defer func() {
+		if err := lockProvider.Close(); err != nil {
+			log.Warn("Failed to close lock provider", zap.Error(err))
+		}
+	}()
+	proc := processor.New(log, lockProvider)
+	go func() {
+		if err := proc.Start(ctx); err != nil {
+			log.Warn("Failed to start processor", zap.Error(err))
 		}
 	}()
 
