@@ -95,7 +95,7 @@ services:
     image: movie:latest
     # build: ./movie
     container_name: movie
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - 8083:8083
     volumes:
@@ -114,7 +114,7 @@ services:
     image: rating:latest
     # build: ./rating
     container_name: rating
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - 8082:8082
     volumes:
@@ -134,7 +134,7 @@ services:
     image: metadata:latest
     # build: ./metadata
     container_name: metadata
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - 8081:8081
     volumes:
@@ -152,7 +152,7 @@ services:
     image: auth:latest
     # build: ./auth
     container_name: auth
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - 8084:8084
     volumes:

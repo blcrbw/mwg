@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
+	"go.uber.org/zap"
 )
 
 func TestControllerGet(t *testing.T) {
@@ -77,11 +78,16 @@ func TestControllerGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				panic(err)
+			}
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
+
 			repoMock := gen.NewMockmetadataRepository(ctrl)
 			cacheMock := gen.NewMockmetadataRepository(ctrl)
-			c := New(repoMock, cacheMock)
+			c := New(repoMock, cacheMock, logger)
 			ctx := context.Background()
 			id := "id"
 			if tt.repGetCall {
@@ -118,11 +124,15 @@ func TestControllerPut(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				panic(err)
+			}
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			repoMock := gen.NewMockmetadataRepository(ctrl)
 			cacheMock := gen.NewMockmetadataRepository(ctrl)
-			c := New(repoMock, cacheMock)
+			c := New(repoMock, cacheMock, logger)
 			ctx := context.Background()
 			m := model.Metadata{
 				ID:          "id",
@@ -131,7 +141,7 @@ func TestControllerPut(t *testing.T) {
 				Director:    "director",
 			}
 			repoMock.EXPECT().Put(ctx, m.ID, &m).Return(tt.expRepoErr)
-			err := c.Put(ctx, m.ID, &m)
+			err = c.Put(ctx, m.ID, &m)
 			assert.Equal(t, tt.wantErr, err, tt.name)
 		})
 	}
